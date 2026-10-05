@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Home from '../pages/Home';
+import Cadastro from '../pages/Cadastro';
+import Login from '../pages/Login';
 
 export default function AppRoutes() {
     return (
@@ -8,7 +10,8 @@ export default function AppRoutes() {
             <Routes>
                 <Route path="/" element={<Layout />}>
                     <Route index element={<Home />} />
-                    {/* Futuras rotas como /login, /denuncias entrarão aqui */}
+                    <Route path="/cadastro" element={<Cadastro />} />
+                    <Route path="/login" element={<Login />} />
                 </Route>
             </Routes>
         </BrowserRouter>

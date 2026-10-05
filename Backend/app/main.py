@@ -1,10 +1,11 @@
 from fastapi import FastAPI
-from app.database import Base, engine
-
-# Cria as tabelas diretamente (opcional, já que vamos usar Alembic, mas útil para testes imediatos)
-# Base.metadata.create_all(bind=engine)
+from app.routers import auth, usuarios
 
 app = FastAPI(title="Guardião Verde API", version="1.0.0")
+
+# Registrando as rotas
+app.include_router(auth.router)
+app.include_router(usuarios.router)
 
 @app.get("/")
 def read_root():
