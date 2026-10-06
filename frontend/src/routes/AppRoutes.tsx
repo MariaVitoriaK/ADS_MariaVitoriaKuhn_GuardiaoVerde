@@ -1,19 +1,24 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Layout from '../components/Layout';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from '../pages/Home';
-import Cadastro from '../pages/Cadastro';
 import Login from '../pages/Login';
+import Cadastro from '../pages/Cadastro';
+import Perfil from '../pages/Perfil';
+import Dashboard from '../pages/Dashboard';
+import AdminPanel from '../pages/AdminPanel';
 
-export default function AppRoutes() {
+function App() {
     return (
-        <BrowserRouter>
+        <Router>
             <Routes>
-                <Route path="/" element={<Layout />}>
-                    <Route index element={<Home />} />
-                    <Route path="/cadastro" element={<Cadastro />} />
-                    <Route path="/login" element={<Login />} />
-                </Route>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/cadastro" element={<Cadastro />} />
+                <Route path="/perfil" element={<Perfil />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/admin" element={<AdminPanel />} />
             </Routes>
-        </BrowserRouter>
+        </Router>
     );
 }
+
+export default App;
