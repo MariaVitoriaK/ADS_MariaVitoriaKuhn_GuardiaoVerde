@@ -19,3 +19,14 @@ class UsuarioOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class UsuarioUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class UsuarioUpdateSenha(BaseModel):
+    senha_atual: str
+    nova_senha: str
+
+class UsuarioStatusUpdate(BaseModel):
+    status: str # Ex: "ativo", "bloqueado"

@@ -1,44 +1,40 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
 from app.database import get_db
+from app.core.security import authenticate_user, create_access_token, get_current_active_user
+from app.schemas.token import Token
 from app.models.models import Usuario
-from app.core.security import verify_password, create_access_token
 
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+router = APIRouter(tags=["Autenticação"])
 
-class RecuperarSenhaRequest(BaseModel):
-    email: EmailStr
-
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # O OAuth2PasswordRequestForm usa 'username' por padrão, então passamos o e-mail nele
-    user = db.query(Usuario).filter(Usuario.email == form_data.username).first()
+@router.post("/login", response_model=Token)
+def login_para_obter_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+):
+    # authenticate_user deve verificar o hash da senha (criado na semana 2)
+    usuario = authenticate_user(db, form_data.username, form_data.password)
     
-    # Verifica se o usuário existe e se a senha está correta (Regra de Negócio 1, 2 e 3)
-    if not user or not verify_password(form_data.password, user.senha_hash):
+    if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Gera o Token JWT
-    access_token = create_access_token(data={"sub": user.email})
+    # Bloqueio de utilizadores inativos/bloqueados no login
+    if usuario.status != "ativo":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta inativa ou bloqueada pelo administrador."
+        )
+
+    access_token = create_access_token(data={"sub": usuario.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/logout")
-def logout():
-    # O logout real ocorre no frontend ao apagar o token do localStorage
-    return {"message": "Logout realizado com sucesso."}
-
-@router.post("/recuperar-senha")
-def recuperar_senha(request: RecuperarSenhaRequest, db: Session = Depends(get_db)):
-    user = db.query(Usuario).filter(Usuario.email == request.email).first()
-    # Retornamos sucesso genérico por segurança (para não revelar se o e-mail existe na base)
-    if not user:
-        return {"message": "Se o e-mail existir, um link de recuperação será enviado."}
-    
-    # Aqui futuramente entra a lógica de envio de e-mail com SMTP
-    return {"message": "Se o e-mail existir, um link de recuperação será enviado."}
+@router.get("/verify-token")
+def verificar_token(current_user: Usuario = Depends(get_current_active_user)):
+    # Utiliza get_current_active_user para garantir que um token válido 
+    # de um usuário recém-bloqueado seja rejeitado.
+    return {"message": "Token válido", "usuario": current_user.email}
