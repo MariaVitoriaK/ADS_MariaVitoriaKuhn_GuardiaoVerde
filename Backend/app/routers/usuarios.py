@@ -1,12 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from datetime import datetime
 from app.database import get_db
-from app.models.models import Usuario
-from app.schemas.usuario import UsuarioOut, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
+from app.models.models import StatusUsuario, TipoUsuario, Usuario
+from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
 from app.core.security import get_current_active_user, get_current_admin_user, get_password_hash, verify_password
 import cloudinary.uploader
 
 router = APIRouter(prefix="/usuarios", tags=["Usuários"])
+
+@router.post("/", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
+def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
+    usuario_existente = db.query(Usuario).filter(Usuario.email == dados.email).first()
+    if usuario_existente:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail já está em uso.")
+
+    usuario = Usuario(
+        nome=dados.nome,
+        email=dados.email,
+        senha_hash=get_password_hash(dados.senha),
+        tipo_usuario=TipoUsuario.usuario,
+        status=StatusUsuario.ativo,
+        data_cadastro=datetime.now(),
+    )
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
+    return usuario
 
 # ==========================================
 # ROTAS DE AUTOGERENCIAMENTO (Meu Perfil)

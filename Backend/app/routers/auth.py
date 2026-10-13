@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.security import authenticate_user, create_access_token, get_current_active_user
 from app.schemas.token import Token
-from app.models.models import Usuario
+from app.models.models import StatusUsuario, Usuario
 
-router = APIRouter(tags=["Autenticação"])
+router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 @router.post("/login", response_model=Token)
 def login_para_obter_token(
@@ -24,7 +24,7 @@ def login_para_obter_token(
         )
     
     # Bloqueio de utilizadores inativos/bloqueados no login
-    if usuario.status != "ativo":
+    if usuario.status != StatusUsuario.ativo:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Conta inativa ou bloqueada pelo administrador."

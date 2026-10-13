@@ -3,8 +3,10 @@ uvicorn
 sqlalchemy
 psycopg2-binary
 pydantic
+email-validator
 python-jose
 passlib[argon2]
 python-multipart
+cloudinary
 alembic
 python-dotenv

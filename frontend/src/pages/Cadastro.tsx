@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, TextField, Typography, Container, Box, Link, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import api from '../services/api';
 
 export default function Cadastro() {
@@ -18,9 +19,20 @@ export default function Cadastro() {
             await api.post('/usuarios/', { nome, email, senha });
             alert('Cadastro realizado com sucesso! Faça login.');
             navigate('/login');
-        } catch (err: any) {
-            if (err.response && err.response.data && err.response.data.detail) {
-                setErro(err.response.data.detail);
+        } catch (err: unknown) {
+            if (axios.isAxiosError<{ detail?: unknown }>(err)) {
+                const detail = err.response?.data?.detail;
+                if (typeof detail === 'string') {
+                    setErro(detail);
+                } else if (Array.isArray(detail)) {
+                    setErro(detail.map((item: unknown) => (
+                        typeof item === 'object' && item !== null && 'msg' in item
+                            ? String(item.msg)
+                            : String(item)
+                    )).join(' '));
+                } else {
+                    setErro('Erro ao realizar cadastro. Tente novamente.');
+                }
             } else {
                 setErro('Erro ao realizar cadastro. Tente novamente.');
             }
@@ -67,7 +79,7 @@ export default function Cadastro() {
                     <Button type="submit" fullWidth variant="contained" color="success" sx={{ mt: 3, mb: 2 }}>
                         Cadastrar
                     </Button>
-                    <Box display="flex" justifyContent="flex-end">
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <Link href="/login" variant="body2" color="success.main">
                             Já tem uma conta? Faça login
                         </Link>

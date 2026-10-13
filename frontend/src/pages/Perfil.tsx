@@ -47,6 +47,7 @@ export default function Perfil() {
                             accept="image/*"
                             onChange={(e) => setFoto(e.target.files ? e.target.files[0] : null)}
                         />
+                        {foto && <Typography variant="body2">{foto.name}</Typography>}
                     </Box>
                     <Button type="submit" variant="contained" color="primary">Salvar Alterações</Button>
                 </Box>

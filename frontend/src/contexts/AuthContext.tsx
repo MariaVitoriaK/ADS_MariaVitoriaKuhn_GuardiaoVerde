@@ -1,6 +1,5 @@
-import { createContext, useState, useEffect, ReactNode } from 'react';
-import api from '../services/api';
-
+import { createContext, useState } from 'react';
+import type { ReactNode } from 'react';
 
 interface AuthContextData {
     signed: boolean;

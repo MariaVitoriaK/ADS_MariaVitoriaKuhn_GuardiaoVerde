@@ -26,7 +26,7 @@ export default function Login() {
             });
 
             login(response.data.access_token);
-            navigate('/'); // Redireciona para o Dashboard após o login
+            navigate('/dashboard');
         } catch (err: any) {
             setErro('E-mail ou senha incorretos.');
         }
@@ -65,7 +65,7 @@ export default function Login() {
                     <Button type="submit" fullWidth variant="contained" color="success" sx={{ mt: 3, mb: 2 }}>
                         Entrar
                     </Button>
-                    <Box display="flex" justifyContent="space-between">
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Link href="#" variant="body2" color="success.main">
                             Esqueceu a senha?
                         </Link>

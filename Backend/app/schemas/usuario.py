@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from app.models.models import StatusUsuario, TipoUsuario
 
 class UsuarioCreate(BaseModel):
     nome: str
@@ -14,8 +15,8 @@ class UsuarioOut(BaseModel):
     id_usuario: int
     nome: str
     email: EmailStr
-    tipo_usuario: str
-    status: str
+    tipo_usuario: TipoUsuario
+    status: StatusUsuario
 
     class Config:
         from_attributes = True
