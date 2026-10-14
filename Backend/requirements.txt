@@ -10,3 +10,4 @@ python-multipart
 cloudinary
 alembic
 python-dotenv
+psycopg
