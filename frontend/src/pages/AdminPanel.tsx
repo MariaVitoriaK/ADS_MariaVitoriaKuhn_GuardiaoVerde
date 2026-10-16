@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
     Box, Typography, Paper, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Button, Chip
+    TableContainer, TableHead, TableRow, Button, Chip, Stack
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 // Interface temporária para simular os dados recebidos da API
 interface Usuario {
@@ -20,6 +21,7 @@ const mockUsuarios: Usuario[] = [
 ];
 
 export default function AdminPanel() {
+    const navigate = useNavigate();
     const [usuarios, setUsuarios] = useState<Usuario[]>(mockUsuarios);
 
     const handleToggleStatus = (id: number, currentStatus: string) => {
@@ -30,7 +32,12 @@ export default function AdminPanel() {
 
     return (
         <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Painel Administrativo</Typography>
+            <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h4" gutterBottom>Painel Administrativo</Typography>
+                <Button variant="contained" color="error" onClick={() => navigate('/admin/denuncias')}>
+                    Ver denúncias
+                </Button>
+            </Stack>
 
             <TableContainer component={Paper}>
                 <Table>
