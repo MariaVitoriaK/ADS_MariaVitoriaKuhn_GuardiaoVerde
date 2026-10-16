@@ -1,23 +1,19 @@
-# Ambientes Virtuais
+# Ambientes virtuais
 venv/
 env/
 .venv/
 
-# Variáveis de Ambiente 
+# Variáveis de ambiente
 .env
 .env.*
+!.env.example
 
-# Python 
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# Banco de dados local 
+# Banco de dados local
 *.db
 *.sqlite3
-
-# Logs e IDEs
-*.log
-.vscode/
-.idea/
