@@ -5,6 +5,7 @@ import Cadastro from '../pages/Cadastro';
 import Perfil from '../pages/Perfil';
 import Dashboard from '../pages/Dashboard';
 import AdminPanel from '../pages/AdminPanel';
+import PrivateRoute from './PrivateRoute';
 
 function App() {
     return (
@@ -13,10 +14,16 @@ function App() {
                 <Route path="/" element={<Login />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/cadastro" element={<Cadastro />} />
-                <Route path="/home" element={<Home />} />
-                <Route path="/perfil" element={<Perfil />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/admin" element={<AdminPanel />} />
+
+                <Route element={<PrivateRoute />}>
+                    <Route path="/home" element={<Home />} />
+                    <Route path="/perfil" element={<Perfil />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                </Route>
+
+                <Route element={<PrivateRoute adminOnly />}>
+                    <Route path="/admin" element={<AdminPanel />} />
+                </Route>
             </Routes>
         </Router>
     );

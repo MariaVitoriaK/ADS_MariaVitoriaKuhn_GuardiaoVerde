@@ -2,8 +2,20 @@ import { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 
-export default function PrivateRoute() {
-    const { signed } = useContext(AuthContext);
+interface PrivateRouteProps {
+    adminOnly?: boolean;
+}
 
-    return signed ? <Outlet /> : <Navigate to="/login" replace />;
+export default function PrivateRoute({ adminOnly = false }: PrivateRouteProps) {
+    const { signed, isAdmin } = useContext(AuthContext);
+
+    if (!signed) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (adminOnly && !isAdmin) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return <Outlet />;
 }

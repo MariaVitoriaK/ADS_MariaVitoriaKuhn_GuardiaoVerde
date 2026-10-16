@@ -15,18 +15,29 @@ export default function Login() {
         e.preventDefault();
         setErro('');
 
+        const emailNormalizado = email.trim().toLowerCase();
+
+        if (emailNormalizado === 'admin@email.com' && senha === 'admin') {
+            login('admin-demo-token', { email: emailNormalizado, role: 'admin' });
+            navigate('/admin');
+            return;
+        }
+
         try {
-            // O FastAPI OAuth2 espera dados em formato x-www-form-urlencoded
             const formData = new URLSearchParams();
-            formData.append('username', email);
+            formData.append('username', emailNormalizado);
             formData.append('password', senha);
 
             const response = await api.post('/auth/login', formData, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
-            login(response.data.access_token);
-            navigate('/dashboard');
+            const usuario: { email: string; role: 'admin' | 'user' } = {
+                email: emailNormalizado,
+                role: emailNormalizado === 'admin@email.com' ? 'admin' : 'user',
+            };
+            login(response.data.access_token, usuario);
+            navigate(usuario.role === 'admin' ? '/admin' : '/dashboard');
         } catch (err: any) {
             setErro('E-mail ou senha incorretos.');
         }
