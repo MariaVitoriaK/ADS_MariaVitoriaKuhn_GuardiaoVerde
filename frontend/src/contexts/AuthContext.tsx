@@ -1,9 +1,11 @@
-import { createContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 interface UserSession {
     email: string;
     role: 'admin' | 'user';
+    nome?: string;
+    foto_perfil?: string | null;
 }
 
 interface AuthContextData {
@@ -12,6 +14,7 @@ interface AuthContextData {
     isAdmin: boolean;
     login: (token: string, user?: UserSession | string) => void;
     logout: () => void;
+    updateUser: (user: Partial<UserSession>) => void;
 }
 
 const readStoredUser = (): UserSession | null => {
@@ -63,6 +66,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
     };
 
+    const updateUser = useCallback((userData: Partial<UserSession>) => {
+        setUser((currentUser) => {
+            if (!currentUser) return currentUser;
+            const updatedUser = { ...currentUser, ...userData };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            return updatedUser;
+        });
+    }, []);
+
     return (
         <AuthContext.Provider value={{
             signed: !!token,
@@ -70,6 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             isAdmin: user?.role === 'admin' || user?.email.toLowerCase() === 'admin@email.com',
             login,
             logout,
+            updateUser,
         }}>
             {children}
         </AuthContext.Provider>

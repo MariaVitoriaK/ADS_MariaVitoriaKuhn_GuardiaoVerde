@@ -29,7 +29,10 @@ def create_access_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def authenticate_user(db: Session, email: str, password: str):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    if email.isdigit():
+        usuario = db.query(Usuario).filter(Usuario.id_usuario == int(email)).first()
+    else:
+        usuario = db.query(Usuario).filter(Usuario.email == email).first()
     if usuario is None or not verify_password(password, usuario.senha_hash):
         return None
     return usuario

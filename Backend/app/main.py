@@ -1,11 +1,16 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.database import SessionLocal
 from app.models.models import StatusUsuario, TipoUsuario, Usuario
 from app.core.security import get_password_hash
 from app.routers import auth, noticias, usuarios
 
 app = FastAPI(title="Guardião Verde API", version="1.0.0")
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

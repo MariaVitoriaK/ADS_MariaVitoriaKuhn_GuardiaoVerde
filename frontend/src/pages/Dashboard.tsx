@@ -1,12 +1,25 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { Box, Typography, Button, Avatar, Chip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import FeedNoticias from './FeedNoticias';
+import api, { getCurrentUser } from '../services/api';
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const { user, isAdmin, logout } = useContext(AuthContext);
+    const { user, isAdmin, logout, updateUser } = useContext(AuthContext);
+
+    useEffect(() => {
+        getCurrentUser()
+            .then(({ data }) => updateUser({ nome: data.nome, foto_perfil: data.foto_perfil }))
+            .catch((error) => console.error('Erro ao carregar o perfil do usuário', error));
+    }, [updateUser]);
+
+    const fotoPerfil = user?.foto_perfil
+        ? user.foto_perfil.startsWith('http')
+            ? user.foto_perfil
+            : `${api.defaults.baseURL}${user.foto_perfil}`
+        : undefined;
 
     return (
         <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#fdfdfd' }}>
@@ -18,9 +31,11 @@ export default function Dashboard() {
                 alignItems: 'center',
                 p: 3
             }}>
-                <Avatar sx={{ width: 100, height: 100, mb: 1, border: '1px solid #ccc' }}>Foto</Avatar>
+                <Avatar src={fotoPerfil} alt={user?.nome ?? 'Foto de perfil'} sx={{ width: 100, height: 100, mb: 1, border: '1px solid #ccc' }}>
+                    {user?.nome?.charAt(0).toUpperCase() ?? 'U'}
+                </Avatar>
                 <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                    {user?.email ?? 'Usuário'}
+                    {user?.nome ?? user?.email ?? 'Usuário'}
                 </Typography>
 
                 <Chip
@@ -36,10 +51,19 @@ export default function Dashboard() {
                 <Button
                     variant="outlined"
                     fullWidth
-                    sx={{ mb: 'auto', borderRadius: 2, color: '#333', borderColor: '#333' }}
+                    sx={{ mb: 2, borderRadius: 2, color: '#333', borderColor: '#333' }}
                     onClick={() => navigate('/denunciar')}
                 >
                     Denunciar
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    fullWidth
+                    sx={{ mb: 'auto', borderRadius: 2, color: '#333', borderColor: '#333' }}
+                    onClick={() => navigate('/perfil')}
+                >
+                    Configurações do perfil
                 </Button>
 
                 {isAdmin && (

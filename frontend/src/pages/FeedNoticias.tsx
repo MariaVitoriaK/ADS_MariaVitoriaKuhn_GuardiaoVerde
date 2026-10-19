@@ -1,106 +1,79 @@
 import { useEffect, useState } from 'react';
 import {
-    Box, Typography, Paper, IconButton, CircularProgress, Button,
+    Alert, Avatar, Box, Button, CircularProgress, IconButton, Paper, Typography,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import { fetchNoticias, toggleCurtirNoticia } from '../services/noticias';
 
 interface Noticia {
     id_noticia: number;
     titulo: string;
     conteudo: string;
+    imagem?: string | null;
     total_curtidas: number;
-    curtida_pelo_usuario?: boolean;
+    total_comentarios: number;
+    curtida_pelo_usuario: boolean;
 }
 
-const fallbackNoticias: Noticia[] = [
-    {
-        id_noticia: 1,
-        titulo: 'Reflorestamento cresce em áreas urbanas',
-        conteudo: 'Projetos comunitários reforçam a mata nativa e melhoram a qualidade do ar em bairros próximos a parques e corredores ecológicos.',
-        total_curtidas: 24,
-        curtida_pelo_usuario: false,
-    },
-    {
-        id_noticia: 2,
-        titulo: 'Nova campanha incentiva coleta seletiva',
-        conteudo: 'A iniciativa reúne escolas, empresas e moradores para ampliar a separação correta de resíduos e reduzir o lixo em aterros.',
-        total_curtidas: 18,
-        curtida_pelo_usuario: true,
-    },
-    {
-        id_noticia: 3,
-        titulo: 'Áreas de preservação recebem apoio de voluntários',
-        conteudo: 'Voluntários de todo o município apoiam ações de limpeza, monitoramento e educação ambiental em áreas vulneráveis.',
-        total_curtidas: 31,
-        curtida_pelo_usuario: false,
-    },
-];
+const imagemUrl = (imagem?: string | null) => {
+    if (!imagem) return undefined;
+    return imagem.startsWith('http') ? imagem : `${api.defaults.baseURL}${imagem}`;
+};
 
 export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean }) {
+    const navigate = useNavigate();
     const [noticias, setNoticias] = useState<Noticia[]>([]);
     const [loading, setLoading] = useState(true);
+    const [erro, setErro] = useState('');
+    const [curtidasEmAndamento, setCurtidasEmAndamento] = useState<number[]>([]);
 
     useEffect(() => {
-        carregarNoticias();
+        const carregarNoticias = async () => {
+            try {
+                const dados = await fetchNoticias();
+                setNoticias(dados);
+            } catch (error) {
+                console.error('Erro ao buscar notícias', error);
+                setErro('Não foi possível carregar as notícias. Tente novamente.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void carregarNoticias();
     }, []);
 
-    const carregarNoticias = async () => {
-        try {
-            const dados = await fetchNoticias();
-            if (Array.isArray(dados) && dados.length > 0) {
-                const noticiasNormalizadas = dados.map((noticia: any) => ({
-                    id_noticia: noticia.id_noticia ?? noticia.id ?? 0,
-                    titulo: noticia.titulo ?? 'Notícia',
-                    conteudo: noticia.conteudo ?? noticia.resumo ?? 'Sem resumo disponível.',
-                    total_curtidas: Number(noticia.total_curtidas ?? 0),
-                    curtida_pelo_usuario: Boolean(noticia.curtida_pelo_usuario ?? false),
-                }));
-                setNoticias(noticiasNormalizadas);
-                return;
-            }
-            setNoticias(fallbackNoticias);
-        } catch (error) {
-            console.error('Erro ao buscar notícias', error);
-            setNoticias(fallbackNoticias);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleCurtir = async (id: number) => {
-        setNoticias(prev => prev.map(n => {
-            if (n.id_noticia === id) {
-                const isCurtido = Boolean(n.curtida_pelo_usuario);
-                return {
-                    ...n,
-                    curtida_pelo_usuario: !isCurtido,
-                    total_curtidas: isCurtido ? n.total_curtidas - 1 : n.total_curtidas + 1,
-                };
-            }
-            return n;
-        }));
-
+        setErro('');
+        setCurtidasEmAndamento((ids) => [...ids, id]);
         try {
-            await toggleCurtirNoticia(id);
-        } catch (_error) {
-            console.warn('Curtir simulando fallback local.');
+            const resultado = await toggleCurtirNoticia(id);
+            setNoticias((anteriores) => anteriores.map((noticia) =>
+                noticia.id_noticia === id
+                    ? {
+                        ...noticia,
+                        curtida_pelo_usuario: resultado.curtida_pelo_usuario,
+                        total_curtidas: resultado.total_curtidas,
+                    }
+                    : noticia,
+            ));
+        } catch (error) {
+            console.error('Erro ao registrar curtida', error);
+            setErro('Não foi possível registrar sua curtida. Tente novamente.');
+        } finally {
+            setCurtidasEmAndamento((ids) => ids.filter((item) => item !== id));
         }
     };
 
-    const handleDelete = (id: number) => {
-        setNoticias(prev => prev.filter(noticia => noticia.id_noticia !== id));
-    };
-
-    if (loading) return <CircularProgress />;
+    if (loading) return <CircularProgress color="success" />;
 
     return (
-        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Box sx={{ flexGrow: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Feed de Notícias</Typography>
                 {isAdmin && (
@@ -110,66 +83,107 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
                 )}
             </Box>
 
+            {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
+
+            {noticias.length === 0 && !erro && (
+                <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
+                    <Typography color="text.secondary">Ainda não há notícias publicadas.</Typography>
+                </Paper>
+            )}
+
             {noticias.map((noticia) => (
                 <Paper
                     key={noticia.id_noticia}
                     variant="outlined"
                     sx={{
                         display: 'flex',
-                        p: 2,
+                        p: { xs: 1.5, sm: 2 },
                         mb: 3,
                         borderRadius: 4,
-                        borderColor: '#b0b0b0',
-                        position: 'relative',
+                        borderColor: '#d8e1d8',
+                        alignItems: 'center',
+                        gap: 2,
                     }}
                 >
-                    <Box sx={{
-                        minWidth: 120,
-                        height: 120,
-                        border: '1px solid #ccc',
-                        borderRadius: 2,
-                        mr: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}>
-                        <Typography variant="body2" color="text.secondary">Foto</Typography>
+                    <Box
+                        role="link"
+                        tabIndex={0}
+                        aria-label={`Abrir notícia: ${noticia.titulo}`}
+                        onClick={() => navigate(`/noticias/${noticia.id_noticia}`)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                navigate(`/noticias/${noticia.id_noticia}`);
+                            }
+                        }}
+                        sx={{
+                            display: 'flex',
+                            flexGrow: 1,
+                            alignItems: 'center',
+                            gap: 2,
+                            minWidth: 0,
+                            cursor: 'pointer',
+                            '&:hover h2': { color: 'success.dark' },
+                        }}
+                    >
+                        {imagemUrl(noticia.imagem) ? (
+                            <Box
+                                component="img"
+                                src={imagemUrl(noticia.imagem)}
+                                alt=""
+                                sx={{ width: { xs: 80, sm: 120 }, height: { xs: 80, sm: 120 }, objectFit: 'cover', borderRadius: 2 }}
+                            />
+                        ) : (
+                            <Avatar
+                                variant="rounded"
+                                sx={{ width: { xs: 80, sm: 120 }, height: { xs: 80, sm: 120 }, bgcolor: 'success.light' }}
+                            >
+                                <Typography variant="caption" color="success.dark">Notícia</Typography>
+                            </Avatar>
+                        )}
+
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography component="h2" variant="h5" sx={{ fontWeight: 'bold', transition: 'color 0.2s' }}>
+                                {noticia.titulo}
+                            </Typography>
+                            <Typography
+                                variant="body1"
+                                color="text.secondary"
+                                sx={{
+                                    mt: 1,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 3,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {noticia.conteudo}
+                            </Typography>
+                            <Typography variant="body2" color="success.dark" sx={{ mt: 1, fontWeight: 600 }}>
+                                Ler notícia completa
+                            </Typography>
+                        </Box>
                     </Box>
 
-                    <Box sx={{ flexGrow: 1, pr: 8 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
-                            {noticia.titulo}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                        <IconButton
+                            aria-label={noticia.curtida_pelo_usuario ? 'Remover curtida' : 'Curtir notícia'}
+                            disabled={curtidasEmAndamento.includes(noticia.id_noticia)}
+                            onClick={() => void handleCurtir(noticia.id_noticia)}
+                        >
+                            {noticia.curtida_pelo_usuario ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                        </IconButton>
+                        <Typography variant="caption">{noticia.total_curtidas} curtidas</Typography>
+                        <IconButton
+                            aria-label={`${noticia.total_comentarios} comentários`}
+                            onClick={() => navigate(`/noticias/${noticia.id_noticia}`)}
+                        >
+                            <ChatBubbleOutlineIcon />
+                        </IconButton>
+                        <Typography variant="caption">
+                            {noticia.total_comentarios} {noticia.total_comentarios === 1 ? 'comentário' : 'comentários'}
                         </Typography>
-                        <Typography variant="body1" color="text.secondary">
-                            {noticia.conteudo}
-                        </Typography>
                     </Box>
-
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <Box sx={{ textAlign: 'center' }}>
-                            <IconButton onClick={() => handleCurtir(noticia.id_noticia)}>
-                                {noticia.curtida_pelo_usuario ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                            </IconButton>
-                            <Typography variant="caption" sx={{ display: 'block' }}>{noticia.total_curtidas} likes</Typography>
-                        </Box>
-                        <Box sx={{ textAlign: 'center' }}>
-                            <IconButton>
-                                <ChatBubbleOutlineIcon />
-                            </IconButton>
-                            <Typography variant="caption" sx={{ display: 'block' }}>comentários</Typography>
-                        </Box>
-                    </Box>
-
-                    {isAdmin && (
-                        <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 1 }}>
-                            <IconButton size="small" color="primary" aria-label="editar notícia">
-                                <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="error" aria-label="excluir notícia" onClick={() => handleDelete(noticia.id_noticia)}>
-                                <DeleteIcon fontSize="small" />
-                            </IconButton>
-                        </Box>
-                    )}
                 </Paper>
             ))}
         </Box>

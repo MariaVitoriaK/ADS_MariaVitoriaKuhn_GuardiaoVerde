@@ -17,9 +17,13 @@ class UsuarioOut(BaseModel):
     email: EmailStr
     tipo_usuario: TipoUsuario
     status: StatusUsuario
+    foto_perfil: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class UsuarioPerfilAtualizado(UsuarioOut):
+    access_token: str
 
 class UsuarioUpdate(BaseModel):
     nome: Optional[str] = None

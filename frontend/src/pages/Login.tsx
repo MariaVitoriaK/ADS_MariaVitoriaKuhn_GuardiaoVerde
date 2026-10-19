@@ -17,12 +17,6 @@ export default function Login() {
 
         const emailNormalizado = email.trim().toLowerCase();
 
-        if (emailNormalizado === 'admin@email.com' && senha === 'admin') {
-            login('admin-demo-token', { email: emailNormalizado, role: 'admin' });
-            navigate('/admin');
-            return;
-        }
-
         try {
             const formData = new URLSearchParams();
             formData.append('username', emailNormalizado);
@@ -37,7 +31,7 @@ export default function Login() {
                 role: emailNormalizado === 'admin@email.com' ? 'admin' : 'user',
             };
             login(response.data.access_token, usuario);
-            navigate(usuario.role === 'admin' ? '/admin' : '/dashboard');
+            navigate('/dashboard');
         } catch (err: any) {
             setErro('E-mail ou senha incorretos.');
         }

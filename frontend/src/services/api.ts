@@ -12,6 +12,7 @@ api.interceptors.request.use((config) => {
 });
 
 export const updateProfile = (data: { nome?: string; email?: string }) => api.put('/usuarios/me', data);
+export const getCurrentUser = () => api.get('/usuarios/me');
 export const updateProfilePhoto = (formData: FormData) => api.put('/usuarios/me/foto', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });
