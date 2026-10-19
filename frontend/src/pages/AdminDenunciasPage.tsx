@@ -48,7 +48,7 @@ export default function AdminDenunciasPage() {
     };
 
     return (
-        <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
+        <Box className="admin-reports-page" sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2, flexWrap: 'wrap' }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>Denúncias recebidas</Typography>
@@ -64,7 +64,7 @@ export default function AdminDenunciasPage() {
 
             <Stack spacing={3}>
                 {denuncias.map((denuncia) => (
-                    <Paper key={denuncia.id_denuncia} sx={{ p: 3, borderRadius: 3, border: '1px solid #e0e0e0' }}>
+                    <Paper key={denuncia.id_denuncia} className="admin-report-card" sx={{ p: 3, borderRadius: 3, border: '1px solid #e0e0e0' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                             <Box>
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{denuncia.titulo}</Typography>

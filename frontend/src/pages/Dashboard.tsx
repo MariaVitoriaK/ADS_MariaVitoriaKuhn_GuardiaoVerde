@@ -22,7 +22,7 @@ export default function Dashboard() {
         : undefined;
 
     return (
-        <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#fdfdfd' }}>
+        <Box className="dashboard-layout" sx={{ display: 'flex', height: '100vh', bgcolor: '#fdfdfd' }}>
             <Box sx={{
                 width: 250,
                 borderRight: '2px solid #e0e0e0',
@@ -30,7 +30,7 @@ export default function Dashboard() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 p: 3
-            }}>
+            }} className="dashboard-sidebar">
                 <Avatar src={fotoPerfil} alt={user?.nome ?? 'Foto de perfil'} sx={{ width: 100, height: 100, mb: 1, border: '1px solid #ccc' }}>
                     {user?.nome?.charAt(0).toUpperCase() ?? 'U'}
                 </Avatar>
@@ -92,7 +92,7 @@ export default function Dashboard() {
                 </Button>
             </Box>
 
-            <Box sx={{ flexGrow: 1, p: 4, overflowY: 'auto' }}>
+            <Box sx={{ flexGrow: 1, p: 4, overflowY: 'auto' }} className="dashboard-main">
                 <FeedNoticias isAdmin={isAdmin} />
             </Box>
         </Box>

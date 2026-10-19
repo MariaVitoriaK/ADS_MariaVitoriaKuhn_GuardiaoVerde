@@ -31,7 +31,7 @@ export default function AdminPanel() {
     };
 
     return (
-        <Box sx={{ p: 3 }}>
+        <Box className="admin-page" sx={{ p: 3 }}>
             <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="h4" gutterBottom>Painel Administrativo</Typography>
                 <Button variant="contained" color="error" onClick={() => navigate('/admin/denuncias')}>
@@ -39,7 +39,7 @@ export default function AdminPanel() {
                 </Button>
             </Stack>
 
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} className="admin-table">
                 <Table>
                     <TableHead>
                         <TableRow>

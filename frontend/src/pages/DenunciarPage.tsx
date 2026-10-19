@@ -107,7 +107,7 @@ export default function DenunciarPage() {
     };
 
     return (
-        <Box sx={{ maxWidth: 1100, mx: 'auto', p: 3 }}>
+        <Box className="report-page" sx={{ maxWidth: 1100, mx: 'auto', p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2, flexWrap: 'wrap' }}>
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>Denúncias</Typography>
@@ -128,7 +128,7 @@ export default function DenunciarPage() {
             )}
 
             {showForm && (
-                <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+                <Paper className="report-form-card" sx={{ p: 3, mb: 4, borderRadius: 3 }}>
                     <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>Nova denúncia</Typography>
 
                     <Stack spacing={2}>

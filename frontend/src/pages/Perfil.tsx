@@ -141,11 +141,11 @@ export default function Perfil() {
     }
 
     return (
-        <Box sx={{ maxWidth: 760, mx: 'auto', p: { xs: 2, sm: 4 } }}>
+        <Box className="profile-page" sx={{ maxWidth: 760, mx: 'auto', p: { xs: 2, sm: 4 } }}>
             <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/dashboard')} sx={{ mb: 2 }}>
                 Voltar ao dashboard
             </Button>
-            <Paper sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3 }}>
+            <Paper className="profile-card" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3 }}>
                 <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }} gutterBottom>
                     Configurações do perfil
                 </Typography>

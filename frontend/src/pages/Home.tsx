@@ -2,7 +2,7 @@ import { Typography } from '@mui/material';
 
 export default function Home() {
     return (
-        <div>
+        <div className="welcome-page">
             <Typography variant="h4" component="h1" gutterBottom>
                 Bem-vindo ao Guardião Verde
             </Typography>

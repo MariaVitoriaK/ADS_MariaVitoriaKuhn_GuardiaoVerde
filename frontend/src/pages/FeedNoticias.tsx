@@ -73,7 +73,7 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
     if (loading) return <CircularProgress color="success" />;
 
     return (
-        <Box sx={{ flexGrow: 1 }}>
+        <Box className="news-feed" sx={{ flexGrow: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Feed de Notícias</Typography>
                 {isAdmin && (
@@ -95,6 +95,7 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
                 <Paper
                     key={noticia.id_noticia}
                     variant="outlined"
+                    className="news-card"
                     sx={{
                         display: 'flex',
                         p: { xs: 1.5, sm: 2 },

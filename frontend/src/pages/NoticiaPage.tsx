@@ -101,14 +101,14 @@ export default function NoticiaPage() {
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress color="success" /></Box>;
 
     return (
-        <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, sm: 4 } }}>
+        <Box className="article-page" sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, sm: 4 } }}>
             <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/dashboard')} sx={{ mb: 2 }}>
                 Voltar ao dashboard
             </Button>
             {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
             {!noticia ? null : (
                 <Stack spacing={3}>
-                    <Paper sx={{ overflow: 'hidden', borderRadius: 3 }}>
+                    <Paper className="article-card" sx={{ overflow: 'hidden', borderRadius: 3 }}>
                         {imagemUrl(noticia.imagem) && (
                             <Box
                                 component="img"
@@ -139,7 +139,7 @@ export default function NoticiaPage() {
                         </Box>
                     </Paper>
 
-                    <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
+                    <Paper className="comments-card" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
                         <Typography variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
                             Comentários ({noticia.total_comentarios})
                         </Typography>
