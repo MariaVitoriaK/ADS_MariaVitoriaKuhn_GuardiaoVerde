@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-    Alert, Avatar, Box, Button, CircularProgress, IconButton, Paper, Typography,
+    Alert, Avatar, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, TextField, Typography,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
@@ -8,7 +8,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { fetchNoticias, toggleCurtirNoticia } from '../services/noticias';
+import { createNoticia, fetchNoticias, toggleCurtirNoticia } from '../services/noticias';
 
 interface Noticia {
     id_noticia: number;
@@ -31,6 +31,9 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
     const [loading, setLoading] = useState(true);
     const [erro, setErro] = useState('');
     const [curtidasEmAndamento, setCurtidasEmAndamento] = useState<number[]>([]);
+    const [formAberto, setFormAberto] = useState(false);
+    const [salvandoNoticia, setSalvandoNoticia] = useState(false);
+    const [novaNoticia, setNovaNoticia] = useState({ titulo: '', conteudo: '', imagem: '' });
 
     useEffect(() => {
         const carregarNoticias = async () => {
@@ -70,6 +73,33 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
         }
     };
 
+    const handleCriarNoticia = async () => {
+        if (!novaNoticia.titulo.trim() || !novaNoticia.conteudo.trim()) {
+            setErro('Preencha o título e o conteúdo da notícia.');
+            return;
+        }
+
+        setSalvandoNoticia(true);
+        setErro('');
+
+        try {
+            const noticiaCriada = await createNoticia({
+                titulo: novaNoticia.titulo.trim(),
+                conteudo: novaNoticia.conteudo.trim(),
+                imagem: novaNoticia.imagem.trim() || undefined,
+            });
+
+            setNoticias((anteriores) => [noticiaCriada, ...anteriores]);
+            setNovaNoticia({ titulo: '', conteudo: '', imagem: '' });
+            setFormAberto(false);
+        } catch (error) {
+            console.error('Erro ao criar notícia', error);
+            setErro('Não foi possível criar a notícia. Verifique os dados e tente novamente.');
+        } finally {
+            setSalvandoNoticia(false);
+        }
+    };
+
     if (loading) return <CircularProgress color="success" />;
 
     return (
@@ -77,13 +107,42 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2 }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Feed de Notícias</Typography>
                 {isAdmin && (
-                    <Button variant="contained" color="success" startIcon={<AddIcon />}>
+                    <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setFormAberto(true)}>
                         Adicionar Notícia
                     </Button>
                 )}
             </Box>
 
             {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
+
+            <Dialog open={formAberto} onClose={() => setFormAberto(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Nova notícia</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+                    <TextField
+                        label="Título"
+                        value={novaNoticia.titulo}
+                        onChange={(event) => setNovaNoticia((atual) => ({ ...atual, titulo: event.target.value }))}
+                    />
+                    <TextField
+                        label="Conteúdo"
+                        multiline
+                        minRows={5}
+                        value={novaNoticia.conteudo}
+                        onChange={(event) => setNovaNoticia((atual) => ({ ...atual, conteudo: event.target.value }))}
+                    />
+                    <TextField
+                        label="URL da imagem (opcional)"
+                        value={novaNoticia.imagem}
+                        onChange={(event) => setNovaNoticia((atual) => ({ ...atual, imagem: event.target.value }))}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setFormAberto(false)}>Cancelar</Button>
+                    <Button variant="contained" color="success" onClick={() => void handleCriarNoticia()} disabled={salvandoNoticia}>
+                        {salvandoNoticia ? 'Salvando…' : 'Publicar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {noticias.length === 0 && !erro && (
                 <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>

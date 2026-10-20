@@ -48,9 +48,10 @@ def get_current_active_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not isinstance(email, str):
+        subject = payload.get("sub")
+        if not isinstance(subject, str):
             raise credentials_exception
+        email = subject
     except JWTError as error:
         raise credentials_exception from error
 

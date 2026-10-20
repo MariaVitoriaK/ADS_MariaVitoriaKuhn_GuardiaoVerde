@@ -33,7 +33,8 @@ export default function Login() {
             login(response.data.access_token, usuario);
             navigate('/dashboard');
         } catch (err: any) {
-            setErro('E-mail ou senha incorretos.');
+            const detail = err?.response?.data?.detail;
+            setErro(typeof detail === 'string' ? detail : 'E-mail ou senha incorretos.');
         }
     };
 

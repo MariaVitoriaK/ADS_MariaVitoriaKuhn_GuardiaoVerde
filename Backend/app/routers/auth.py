@@ -30,7 +30,7 @@ def login_para_obter_token(
             detail="Conta inativa ou bloqueada pelo administrador."
         )
 
-    access_token = create_access_token(data={"sub": str(usuario.id_usuario)})
+    access_token = create_access_token(data={"sub": usuario.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/verify-token")

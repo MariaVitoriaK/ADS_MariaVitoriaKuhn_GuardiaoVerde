@@ -110,6 +110,9 @@ export default function DenunciarPage() {
         <Box className="report-page" sx={{ maxWidth: 1100, mx: 'auto', p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2, flexWrap: 'wrap' }}>
                 <Box>
+                    <Button variant="outlined" onClick={() => navigate('/dashboard')} sx={{ mb: 2 }}>
+                        Voltar ao dashboard
+                    </Button>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>Denúncias</Typography>
                     <Typography variant="body2" color="text.secondary">
                         Registre ocorrências ambientais e acompanhe o histórico das suas denúncias.
@@ -307,9 +310,6 @@ export default function DenunciarPage() {
                 ))}
             </Box>
 
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="outlined" onClick={() => navigate('/dashboard')}>Voltar para o dashboard</Button>
-            </Box>
         </Box>
     );
 }

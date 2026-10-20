@@ -7,6 +7,7 @@ Inicie a API em um terminal:
 ```powershell
 cd Backend
 pip install -r requirements.txt
+venv\Scripts\activate
 uvicorn app.main:app --reload
 ```
 

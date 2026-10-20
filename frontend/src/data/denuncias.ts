@@ -51,62 +51,7 @@ export const criaHistorico = (
     data_alteracao: dataAlteracao,
 });
 
-export const initialDenuncias: Denuncia[] = [
-    {
-        id_denuncia: 1,
-        id_usuario: 101,
-        titulo: 'Desmatamento em área de preservação',
-        descricao: 'Há corte irregular de árvores em uma faixa próxima ao rio e a área está sendo usada para descarte de resíduos.',
-        categoria: 'Desmatamento',
-        localizacao: 'Próximo ao parque municipal',
-        cidade: 'São Paulo',
-        estado: 'SP',
-        latitude: '-23.5505',
-        longitude: '-46.6333',
-        data_ocorrencia: '2026-10-12',
-        gravidade: 'alta',
-        status: 'pendente',
-        data_registro: '2026-10-13T09:30:00',
-        fotos: ['image-1.jpg'],
-        historico: [
-            {
-                id_historico: 1,
-                id_denuncia: 1,
-                status_anterior: 'pendente',
-                novo_status: 'pendente',
-                observacao: 'Denúncia registrada pelo usuário e enviada para análise do administrador.',
-                data_alteracao: '2026-10-13T09:30:00',
-            },
-        ],
-    },
-    {
-        id_denuncia: 2,
-        id_usuario: 102,
-        titulo: 'Queimadas na região rural',
-        descricao: 'Há focos de fumaça e sinais de queima de vegetação em área abandonada perto da estrada rural.',
-        categoria: 'Queimada',
-        localizacao: 'Estrada rural KM 12',
-        cidade: 'Campinas',
-        estado: 'SP',
-        latitude: '-22.9058',
-        longitude: '-47.0616',
-        data_ocorrencia: '2026-10-14',
-        gravidade: 'média',
-        status: 'aceita',
-        data_registro: '2026-10-14T18:10:00',
-        fotos: ['image-2.jpg'],
-        historico: [
-            {
-                id_historico: 2,
-                id_denuncia: 2,
-                status_anterior: 'pendente',
-                novo_status: 'aceita',
-                observacao: 'Denúncia validada e encaminhada para equipe de monitoramento.',
-                data_alteracao: '2026-10-14T18:45:00',
-            },
-        ],
-    },
-];
+export const initialDenuncias: Denuncia[] = [];
 const STORAGE_KEY = 'guardiaverde_denuncias';
 
 export const getStoredDenuncias = (): Denuncia[] => {
@@ -121,8 +66,20 @@ export const getStoredDenuncias = (): Denuncia[] => {
 
     try {
         const parsed = JSON.parse(raw) as Denuncia[];
-        return Array.isArray(parsed) && parsed.length > 0 ? parsed : initialDenuncias;
+        if (!Array.isArray(parsed)) {
+            window.localStorage.removeItem(STORAGE_KEY);
+            return initialDenuncias;
+        }
+
+        const temDenunciasMockadas = parsed.some((item) => item.id_usuario === 101 || item.id_usuario === 102);
+        if (temDenunciasMockadas) {
+            window.localStorage.removeItem(STORAGE_KEY);
+            return initialDenuncias;
+        }
+
+        return parsed;
     } catch {
+        window.localStorage.removeItem(STORAGE_KEY);
         return initialDenuncias;
     }
 };
