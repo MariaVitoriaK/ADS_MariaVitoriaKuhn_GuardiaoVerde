@@ -28,10 +28,22 @@ import {
     type Denuncia,
 } from '../data/denuncias';
 
+const categoriasDisponiveis = [
+    'Desmatamento',
+    'Queimada',
+    'Lixão irregular',
+    'Poluição da água',
+    'Erosão e deslizamento',
+    'Descarte de resíduos industriais',
+    'Caça e pesca irregular',
+    'Infraestrutura ambiental',
+    'Outros',
+];
+
 const emptyForm = {
     titulo: '',
     descricao: '',
-    categoria: '',
+    categoria: categoriasDisponiveis[0],
     localizacao: '',
     cidade: '',
     estado: '',
@@ -47,7 +59,7 @@ export default function DenunciarPage() {
     const [showForm, setShowForm] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [feedback, setFeedback] = useState<string | null>(null);
-    const [fotos, setFotos] = useState<File[]>([]);
+    const [fotos, setFotos] = useState<string[]>([]);
     const [form, setForm] = useState(emptyForm);
 
     const proximoId = useMemo(
@@ -59,10 +71,20 @@ export default function DenunciarPage() {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setFotos(Array.from(event.target.files));
-        }
+    const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const arquivos = Array.from(event.target.files ?? []);
+        if (!arquivos.length) return;
+
+        const previews = await Promise.all(
+            arquivos.map((arquivo) => new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result ?? ''));
+                reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'));
+                reader.readAsDataURL(arquivo);
+            })),
+        );
+
+        setFotos((anterior) => [...anterior, ...previews]);
     };
 
     const handleEnviarDenuncia = () => {
@@ -81,7 +103,7 @@ export default function DenunciarPage() {
             gravidade: form.gravidade,
             status: 'pendente',
             data_registro: new Date().toISOString(),
-            fotos: fotos.map((foto) => foto.name),
+            fotos,
             historico: [
                 criaHistorico(
                     proximoId,
@@ -150,11 +172,19 @@ export default function DenunciarPage() {
                         />
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <TextField
-                                label="Categoria"
-                                value={form.categoria}
-                                onChange={(event) => handleFormChange('categoria', event.target.value)}
-                            />
+                            <FormControl>
+                                <InputLabel id="categoria-label">Categoria</InputLabel>
+                                <Select
+                                    labelId="categoria-label"
+                                    value={form.categoria}
+                                    label="Categoria"
+                                    onChange={(event) => handleFormChange('categoria', event.target.value)}
+                                >
+                                    {categoriasDisponiveis.map((categoria) => (
+                                        <MenuItem key={categoria} value={categoria}>{categoria}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                             <FormControl>
                                 <InputLabel id="gravidade-label">Gravidade</InputLabel>
                                 <Select
@@ -209,11 +239,19 @@ export default function DenunciarPage() {
 
                         <Box>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>Adicionar fotos</Typography>
-                            <input type="file" accept="image/*" multiple onChange={handleFileChange} />
+                            <input type="file" accept="image/*" multiple onChange={(event) => void handleFileChange(event)} />
                             {fotos.length > 0 && (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                    {fotos.length} arquivo(s) selecionado(s): {fotos.map((foto) => foto.name).join(', ')}
-                                </Typography>
+                                <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
+                                    {fotos.map((foto, index) => (
+                                        <Box
+                                            key={`${foto}-${index}`}
+                                            component="img"
+                                            src={foto}
+                                            alt={`Foto da denúncia ${index + 1}`}
+                                            sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 2, border: '1px solid #d9d9d9' }}
+                                        />
+                                    ))}
+                                </Stack>
                             )}
                         </Box>
 
@@ -284,7 +322,13 @@ export default function DenunciarPage() {
                                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Fotos anexadas</Typography>
                                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                                     {denuncia.fotos.map((foto, index) => (
-                                        <Chip key={`${denuncia.id_denuncia}-${index}`} label={foto} size="small" color="primary" variant="outlined" />
+                                        <Box
+                                            key={`${denuncia.id_denuncia}-${index}`}
+                                            component="img"
+                                            src={foto}
+                                            alt={`Foto anexada ${index + 1}`}
+                                            sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 2, border: '1px solid #d9d9d9' }}
+                                        />
                                     ))}
                                 </Stack>
                             </Box>

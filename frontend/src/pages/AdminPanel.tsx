@@ -116,8 +116,9 @@ export default function AdminPanel() {
                                             size="small"
                                             onClick={() => void handleToggleStatus(usuario.id_usuario, usuario.status)}
                                             disabled={usuario.tipo_usuario === 'administrador' || atualizando === usuario.id_usuario}
+                                            sx={{ opacity: usuario.tipo_usuario === 'administrador' ? 0.6 : 1 }}
                                         >
-                                            {usuarioBloqueado ? 'Reativar' : 'Bloquear'}
+                                            {usuario.tipo_usuario === 'administrador' ? 'Administrador' : usuarioBloqueado ? 'Reativar' : 'Bloquear'}
                                         </Button>
                                     </TableCell>
                                 </TableRow>

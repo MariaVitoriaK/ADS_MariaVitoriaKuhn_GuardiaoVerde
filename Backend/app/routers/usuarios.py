@@ -69,7 +69,7 @@ def atualizar_perfil(
         "tipo_usuario": current_user.tipo_usuario,
         "status": current_user.status,
         "foto_perfil": current_user.foto_perfil,
-        "access_token": create_access_token({"sub": str(current_user.id_usuario)}),
+        "access_token": create_access_token({"sub": current_user.email}),
     }
 
 @router.put("/me/foto", response_model=UsuarioOut)

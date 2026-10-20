@@ -51,11 +51,18 @@ def get_current_active_user(
         subject = payload.get("sub")
         if not isinstance(subject, str):
             raise credentials_exception
-        email = subject
     except JWTError as error:
         raise credentials_exception from error
 
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    usuario = None
+    if "@" in subject:
+        usuario = db.query(Usuario).filter(Usuario.email == subject).first()
+    else:
+        try:
+            usuario = db.query(Usuario).filter(Usuario.id_usuario == int(subject)).first()
+        except ValueError:
+            usuario = None
+
     if usuario is None:
         raise credentials_exception
     if usuario.status != StatusUsuario.ativo:
