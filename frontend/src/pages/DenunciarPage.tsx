@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
     Alert,
     Box,
@@ -20,6 +20,11 @@ import {
     Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import L from 'leaflet';
+import markerIconUrl from 'leaflet/dist/images/marker-icon.png';
+import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png';
+import 'leaflet/dist/leaflet.css';
 import {
     criaHistorico,
     getStoredDenuncias,
@@ -27,6 +32,88 @@ import {
     statusLabels,
     type Denuncia,
 } from '../data/denuncias';
+
+type Coordenadas = {
+    latitude: number;
+    longitude: number;
+};
+
+const coordenadasIniciais = (latitude: string, longitude: string): Coordenadas | null => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!latitude || !longitude || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180 || (lat === 0 && lng === 0)) return null;
+    return { latitude: lat, longitude: lng };
+};
+
+const iconeMarcador = L.icon({
+    iconUrl: markerIconUrl,
+    iconRetinaUrl: markerIconRetinaUrl,
+    shadowUrl: markerShadowUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+});
+
+function SeletorMapa({
+    coordenadasIniciais: coordenadas,
+    aoSelecionar,
+}: {
+    coordenadasIniciais: Coordenadas | null;
+    aoSelecionar: (coordenadas: Coordenadas) => void;
+}) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const aoSelecionarRef = useRef(aoSelecionar);
+    const posicaoInicialRef = useRef(coordenadas);
+
+    useEffect(() => {
+        aoSelecionarRef.current = aoSelecionar;
+    }, [aoSelecionar]);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const latitudeInicial = posicaoInicialRef.current?.latitude ?? null;
+        const longitudeInicial = posicaoInicialRef.current?.longitude ?? null;
+        const temCoordenadas = latitudeInicial !== null && longitudeInicial !== null;
+        const centro: L.LatLngExpression = temCoordenadas
+            ? [latitudeInicial, longitudeInicial]
+            : [-14.235, -51.9253];
+        const mapa = L.map(containerRef.current).setView(centro, temCoordenadas ? 13 : 4);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+        }).addTo(mapa);
+
+        let marcador = temCoordenadas
+            ? L.marker(centro, { icon: iconeMarcador }).addTo(mapa)
+            : null;
+
+        mapa.on('click', (evento) => {
+            const { lat, lng } = evento.latlng;
+            if (marcador) {
+                marcador.setLatLng(evento.latlng);
+            } else {
+                marcador = L.marker(evento.latlng, { icon: iconeMarcador }).addTo(mapa);
+            }
+            aoSelecionarRef.current({ latitude: lat, longitude: lng });
+        });
+
+        requestAnimationFrame(() => mapa.invalidateSize());
+        return () => {
+            mapa.remove();
+        };
+    }, []);
+
+    return (
+        <Box
+            ref={containerRef}
+            role="application"
+            aria-label="Mapa para selecionar a localização da denúncia"
+            sx={{ width: '100%', height: { xs: 320, sm: 440 }, borderRadius: 1, overflow: 'hidden' }}
+        />
+    );
+}
 
 const categoriasDisponiveis = [
     'Desmatamento',
@@ -58,6 +145,7 @@ export default function DenunciarPage() {
     const [denuncias, setDenuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
     const [showForm, setShowForm] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [mapaAberto, setMapaAberto] = useState(false);
     const [feedback, setFeedback] = useState<string | null>(null);
     const [fotos, setFotos] = useState<string[]>([]);
     const [form, setForm] = useState(emptyForm);
@@ -219,16 +307,16 @@ export default function DenunciarPage() {
                         </Stack>
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <TextField
-                                label="Latitude"
-                                value={form.latitude}
-                                onChange={(event) => handleFormChange('latitude', event.target.value)}
-                            />
-                            <TextField
-                                label="Longitude"
-                                value={form.longitude}
-                                onChange={(event) => handleFormChange('longitude', event.target.value)}
-                            />
+                            <Box sx={{ flex: 1 }}>
+                                <Button variant="outlined" onClick={() => setMapaAberto(true)}>
+                                    {form.latitude && form.longitude ? 'Alterar coordenadas no mapa' : 'Adicionar coordenadas'}
+                                </Button>
+                                {form.latitude && form.longitude && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                        Latitude: {form.latitude} • Longitude: {form.longitude}
+                                    </Typography>
+                                )}
+                            </Box>
                             <TextField
                                 type="date"
                                 label="Data da ocorrência"
@@ -266,6 +354,42 @@ export default function DenunciarPage() {
                     </Stack>
                 </Paper>
             )}
+
+            <Dialog
+                open={mapaAberto}
+                onClose={() => setMapaAberto(false)}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>Selecione a localização da denúncia</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Clique no mapa para posicionar o marcador.
+                    </Typography>
+                    <SeletorMapa
+                        coordenadasIniciais={coordenadasIniciais(form.latitude, form.longitude)}
+                        aoSelecionar={(coordenadas) => {
+                            handleFormChange('latitude', coordenadas.latitude.toFixed(6));
+                            handleFormChange('longitude', coordenadas.longitude.toFixed(6));
+                        }}
+                    />
+                    {form.latitude && form.longitude && (
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                            Latitude: {form.latitude} • Longitude: {form.longitude}
+                        </Typography>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setMapaAberto(false)}>Fechar</Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => setMapaAberto(false)}
+                        disabled={!form.latitude || !form.longitude}
+                    >
+                        Usar coordenadas
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
                 <DialogTitle>Confirmar denúncia</DialogTitle>
