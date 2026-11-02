@@ -8,6 +8,7 @@ import DenunciarPage from '../pages/DenunciarPage';
 import AdminPanel from '../pages/AdminPanel';
 import AdminDenunciasPage from '../pages/AdminDenunciasPage';
 import NoticiaPage from '../pages/NoticiaPage';
+import OngsPage from '../pages/OngsPage';
 import PrivateRoute from './PrivateRoute';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
                     <Route path="/perfil" element={<Perfil />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/denunciar" element={<DenunciarPage />} />
+                    <Route path="/ongs" element={<OngsPage />} />
                     <Route path="/noticias/:id" element={<NoticiaPage />} />
                 </Route>
 

@@ -60,6 +60,15 @@ export default function Dashboard() {
                 <Button
                     variant="outlined"
                     fullWidth
+                    sx={{ mb: 2, borderRadius: 2, color: '#333', borderColor: '#333' }}
+                    onClick={() => navigate('/ongs')}
+                >
+                    ONGs
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    fullWidth
                     sx={{ mb: 'auto', borderRadius: 2, color: '#333', borderColor: '#333' }}
                     onClick={() => navigate('/perfil')}
                 >
