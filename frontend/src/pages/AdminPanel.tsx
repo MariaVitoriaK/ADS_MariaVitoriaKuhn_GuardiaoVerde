@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
-    Box, Typography, Paper, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Button, Chip, Stack, Alert
+    Alert,
+    Box,
+    Button,
+    Chip,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
-import { getUsers, updateUserStatus } from '../services/api';
+import { getUsers, type BloqueioDuracao, updateUserStatus } from '../services/api';
 
 interface Usuario {
     id_usuario: number;
@@ -13,6 +28,7 @@ interface Usuario {
     email: string;
     status: 'ativo' | 'inativo' | 'banido';
     tipo_usuario: 'usuario' | 'administrador' | string;
+    bloqueado_ate?: string | null;
 }
 
 const normalizarStatus = (status?: string): 'ativo' | 'inativo' | 'banido' => {
@@ -37,6 +53,7 @@ export default function AdminPanel() {
                     email: usuario.email,
                     status: normalizarStatus(usuario.status),
                     tipo_usuario: usuario.tipo_usuario,
+                    bloqueado_ate: usuario.bloqueado_ate ?? null,
                 })));
             } catch (error) {
                 console.error('Erro ao carregar usuários', error);
@@ -47,15 +64,24 @@ export default function AdminPanel() {
         void carregarUsuarios();
     }, []);
 
-    const handleToggleStatus = async (id: number, currentStatus: string) => {
-        const novoStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo';
+    const handleAlterarStatus = async (
+        id: number,
+        novoStatus: 'ativo' | 'inativo' | 'banido',
+        duracao?: BloqueioDuracao,
+    ) => {
         setAtualizando(id);
         setErro('');
 
         try {
-            await updateUserStatus(id, novoStatus as 'ativo' | 'inativo' | 'banido');
+            await updateUserStatus(id, novoStatus, duracao);
             setUsuarios((prev) => prev.map((usuario) => (
-                usuario.id_usuario === id ? { ...usuario, status: novoStatus as 'ativo' | 'inativo' | 'banido' } : usuario
+                usuario.id_usuario === id
+                    ? {
+                        ...usuario,
+                        status: novoStatus,
+                        bloqueado_ate: novoStatus === 'banido' ? (duracao === 'permanente' ? null : new Date(Date.now() + (duracao === '30_dias' ? 30 : 90) * 24 * 60 * 60 * 1000).toISOString()) : null,
+                    }
+                    : usuario
             )));
         } catch (error) {
             console.error('Erro ao alterar status do usuário', error);
@@ -95,6 +121,7 @@ export default function AdminPanel() {
                         {usuarios.map((usuario) => {
                             const usuarioBloqueado = usuario.status !== 'ativo';
                             const tipo = usuario.tipo_usuario === 'administrador' ? 'administrador' : 'usuário';
+                            const valorSelect = usuario.status === 'ativo' ? 'ativo' : usuario.status === 'inativo' ? 'inativo' : '30_dias';
 
                             return (
                                 <TableRow key={usuario.id_usuario}>
@@ -110,16 +137,37 @@ export default function AdminPanel() {
                                         />
                                     </TableCell>
                                     <TableCell align="center">
-                                        <Button
-                                            variant="outlined"
-                                            color={usuarioBloqueado ? 'success' : 'error'}
-                                            size="small"
-                                            onClick={() => void handleToggleStatus(usuario.id_usuario, usuario.status)}
-                                            disabled={usuario.tipo_usuario === 'administrador' || atualizando === usuario.id_usuario}
-                                            sx={{ opacity: usuario.tipo_usuario === 'administrador' ? 0.6 : 1 }}
-                                        >
-                                            {usuario.tipo_usuario === 'administrador' ? 'Administrador' : usuarioBloqueado ? 'Reativar' : 'Bloquear'}
-                                        </Button>
+                                        <FormControl size="small" sx={{ minWidth: 140 }}>
+                                            <InputLabel id={`status-${usuario.id_usuario}`}>Status</InputLabel>
+                                            <Select
+                                                labelId={`status-${usuario.id_usuario}`}
+                                                value={valorSelect}
+                                                label="Status"
+                                                onChange={(event) => {
+                                                    const proximo = event.target.value as string;
+                                                    if (usuario.tipo_usuario === 'administrador') return;
+
+                                                    if (proximo === 'ativo') {
+                                                        void handleAlterarStatus(usuario.id_usuario, 'ativo');
+                                                        return;
+                                                    }
+
+                                                    if (proximo === 'inativo') {
+                                                        void handleAlterarStatus(usuario.id_usuario, 'inativo');
+                                                        return;
+                                                    }
+
+                                                    void handleAlterarStatus(usuario.id_usuario, 'banido', proximo as BloqueioDuracao);
+                                                }}
+                                                disabled={usuario.tipo_usuario === 'administrador' || atualizando === usuario.id_usuario}
+                                            >
+                                                <MenuItem value="ativo">Ativo</MenuItem>
+                                                <MenuItem value="inativo">Inativo</MenuItem>
+                                                <MenuItem value="30_dias">30 dias</MenuItem>
+                                                <MenuItem value="90_dias">90 dias</MenuItem>
+                                                <MenuItem value="permanente">Permanente</MenuItem>
+                                            </Select>
+                                        </FormControl>
                                     </TableCell>
                                 </TableRow>
                             );

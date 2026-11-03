@@ -28,6 +28,19 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+def atualizar_status_bloqueio_automatico(db: Session, usuario: Usuario):
+    if usuario.status != StatusUsuario.banido or usuario.bloqueado_ate is None:
+        return usuario
+
+    if datetime.utcnow() >= usuario.bloqueado_ate:
+        usuario.status = StatusUsuario.ativo
+        usuario.bloqueado_ate = None
+        db.add(usuario)
+        db.commit()
+        db.refresh(usuario)
+    return usuario
+
+
 def authenticate_user(db: Session, email: str, password: str):
     if email.isdigit():
         usuario = db.query(Usuario).filter(Usuario.id_usuario == int(email)).first()
@@ -35,6 +48,7 @@ def authenticate_user(db: Session, email: str, password: str):
         usuario = db.query(Usuario).filter(Usuario.email == email).first()
     if usuario is None or not verify_password(password, usuario.senha_hash):
         return None
+    atualizar_status_bloqueio_automatico(db, usuario)
     return usuario
 
 def get_current_active_user(
@@ -65,6 +79,9 @@ def get_current_active_user(
 
     if usuario is None:
         raise credentials_exception
+
+    atualizar_status_bloqueio_automatico(db, usuario)
+
     if usuario.status != StatusUsuario.ativo:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

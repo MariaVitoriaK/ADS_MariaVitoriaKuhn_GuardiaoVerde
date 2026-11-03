@@ -2,11 +2,11 @@ from pathlib import Path
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.database import get_db
-from app.models.models import StatusUsuario, TipoUsuario, Usuario
+from app.models.models import Curtida, StatusUsuario, TipoUsuario, Usuario
 from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioPerfilAtualizado, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
-from app.core.security import create_access_token, get_current_active_user, get_current_admin_user, get_password_hash, verify_password
+from app.core.security import atualizar_status_bloqueio_automatico, create_access_token, get_current_active_user, get_current_admin_user, get_password_hash, verify_password
 
 router = APIRouter(prefix="/usuarios", tags=["Usuários"])
 PROFILE_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "profiles"
@@ -111,8 +111,13 @@ def alterar_senha(
     db.commit()
     return {"message": "Senha atualizada com sucesso."}
 
+def remover_curtidas_do_usuario(db: Session, id_usuario: int):
+    db.query(Curtida).filter(Curtida.id_usuario == id_usuario).delete(synchronize_session=False)
+
+
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_conta(db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_active_user)):
+    remover_curtidas_do_usuario(db, current_user.id_usuario)
     db.delete(current_user)
     db.commit()
     return None
@@ -128,16 +133,38 @@ def listar_usuarios(db: Session = Depends(get_db), current_admin: Usuario = Depe
 
 @router.put("/{id_usuario}/status", response_model=UsuarioOut)
 def alterar_status_usuario(
-    id_usuario: int, 
-    dados: UsuarioStatusUpdate, 
-    db: Session = Depends(get_db), 
+    id_usuario: int,
+    dados: UsuarioStatusUpdate,
+    db: Session = Depends(get_db),
     current_admin: Usuario = Depends(get_current_admin_user)
 ):
     usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    
-    usuario.status = dados.status
+
+    novo_status = dados.status.lower()
+
+    if novo_status == "banido":
+        duracao = (dados.duracao or "30_dias").lower()
+        if duracao == "30_dias":
+            usuario.bloqueado_ate = datetime.utcnow() + timedelta(days=30)
+        elif duracao == "90_dias":
+            usuario.bloqueado_ate = datetime.utcnow() + timedelta(days=90)
+        elif duracao == "permanente":
+            usuario.bloqueado_ate = None
+        else:
+            raise HTTPException(status_code=400, detail="Duração de bloqueio inválida.")
+        usuario.status = StatusUsuario.banido
+    elif novo_status == "ativo":
+        usuario.status = StatusUsuario.ativo
+        usuario.bloqueado_ate = None
+    elif novo_status == "inativo":
+        usuario.status = StatusUsuario.inativo
+        usuario.bloqueado_ate = None
+    else:
+        raise HTTPException(status_code=400, detail="Status inválido.")
+
     db.commit()
     db.refresh(usuario)
+    atualizar_status_bloqueio_automatico(db, usuario)
     return usuario

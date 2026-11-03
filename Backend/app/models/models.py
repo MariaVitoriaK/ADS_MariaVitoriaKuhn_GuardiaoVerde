@@ -22,6 +22,7 @@ class Usuario(Base):
     foto_perfil = Column(String)
     tipo_usuario = Column(Enum(TipoUsuario), default=TipoUsuario.usuario)
     status = Column(Enum(StatusUsuario), default=StatusUsuario.ativo)
+    bloqueado_ate = Column(DateTime, nullable=True)
     data_cadastro = Column(DateTime)
 
 class Denuncia(Base):
@@ -54,36 +55,10 @@ class HistoricoDenuncia(Base):
 class Foto(Base):
     __tablename__ = "foto"
     id_foto = Column(Integer, primary_key=True, index=True)
-    id_area = Column(Integer, ForeignKey("area_restauracao.id_area"), nullable=True)
     id_denuncia = Column(Integer, ForeignKey("denuncia.id_denuncia"), nullable=True)
     url_foto = Column(String)
     data_upload = Column(DateTime)
     descricao = Column(String)
-
-class AreaRestauracao(Base):
-    __tablename__ = "area_restauracao"
-    id_area = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
-    nome = Column(String)
-    descricao = Column(Text)
-    localizacao = Column(String)
-    cidade = Column(String)
-    estado = Column(String)
-    bioma = Column(String)
-    area_aproximada = Column(Numeric)
-    motivo = Column(Text)
-    percentual_progresso = Column(Numeric)
-    status = Column(String)
-    data_cadastro = Column(DateTime)
-
-class AcaoRestauracao(Base):
-    __tablename__ = "acao_restauracao"
-    id_acao = Column(Integer, primary_key=True, index=True)
-    id_area = Column(Integer, ForeignKey("area_restauracao.id_area"))
-    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
-    descricao = Column(Text)
-    data_acao = Column(Date)
-    percentual_progresso = Column(Numeric)
 
 class Noticia(Base):
     __tablename__ = "noticia"

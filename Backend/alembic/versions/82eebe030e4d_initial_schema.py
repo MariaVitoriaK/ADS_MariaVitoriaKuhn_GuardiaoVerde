@@ -34,24 +34,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_usuario_email'), 'usuario', ['email'], unique=True)
     op.create_index(op.f('ix_usuario_id_usuario'), 'usuario', ['id_usuario'], unique=False)
-    op.create_table('area_restauracao',
-    sa.Column('id_area', sa.Integer(), nullable=False),
-    sa.Column('id_usuario', sa.Integer(), nullable=True),
-    sa.Column('nome', sa.String(), nullable=True),
-    sa.Column('descricao', sa.Text(), nullable=True),
-    sa.Column('localizacao', sa.String(), nullable=True),
-    sa.Column('cidade', sa.String(), nullable=True),
-    sa.Column('estado', sa.String(), nullable=True),
-    sa.Column('bioma', sa.String(), nullable=True),
-    sa.Column('area_aproximada', sa.Numeric(), nullable=True),
-    sa.Column('motivo', sa.Text(), nullable=True),
-    sa.Column('percentual_progresso', sa.Numeric(), nullable=True),
-    sa.Column('status', sa.String(), nullable=True),
-    sa.Column('data_cadastro', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['id_usuario'], ['usuario.id_usuario'], ),
-    sa.PrimaryKeyConstraint('id_area')
-    )
-    op.create_index(op.f('ix_area_restauracao_id_area'), 'area_restauracao', ['id_area'], unique=False)
     op.create_table('denuncia',
     sa.Column('id_denuncia', sa.Integer(), nullable=False),
     sa.Column('id_usuario', sa.Integer(), nullable=True),
@@ -98,18 +80,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id_ong')
     )
     op.create_index(op.f('ix_ong_id_ong'), 'ong', ['id_ong'], unique=False)
-    op.create_table('acao_restauracao',
-    sa.Column('id_acao', sa.Integer(), nullable=False),
-    sa.Column('id_area', sa.Integer(), nullable=True),
-    sa.Column('id_usuario', sa.Integer(), nullable=True),
-    sa.Column('descricao', sa.Text(), nullable=True),
-    sa.Column('data_acao', sa.Date(), nullable=True),
-    sa.Column('percentual_progresso', sa.Numeric(), nullable=True),
-    sa.ForeignKeyConstraint(['id_area'], ['area_restauracao.id_area'], ),
-    sa.ForeignKeyConstraint(['id_usuario'], ['usuario.id_usuario'], ),
-    sa.PrimaryKeyConstraint('id_acao')
-    )
-    op.create_index(op.f('ix_acao_restauracao_id_acao'), 'acao_restauracao', ['id_acao'], unique=False)
     op.create_table('comentario',
     sa.Column('id_comentario', sa.Integer(), nullable=False),
     sa.Column('id_usuario', sa.Integer(), nullable=True),
@@ -134,12 +104,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_curtida_id_curtida'), 'curtida', ['id_curtida'], unique=False)
     op.create_table('foto',
     sa.Column('id_foto', sa.Integer(), nullable=False),
-    sa.Column('id_area', sa.Integer(), nullable=True),
     sa.Column('id_denuncia', sa.Integer(), nullable=True),
     sa.Column('url_foto', sa.String(), nullable=True),
     sa.Column('data_upload', sa.DateTime(), nullable=True),
     sa.Column('descricao', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['id_area'], ['area_restauracao.id_area'], ),
     sa.ForeignKeyConstraint(['id_denuncia'], ['denuncia.id_denuncia'], ),
     sa.PrimaryKeyConstraint('id_foto')
     )
@@ -171,16 +139,12 @@ def downgrade() -> None:
     op.drop_table('curtida')
     op.drop_index(op.f('ix_comentario_id_comentario'), table_name='comentario')
     op.drop_table('comentario')
-    op.drop_index(op.f('ix_acao_restauracao_id_acao'), table_name='acao_restauracao')
-    op.drop_table('acao_restauracao')
     op.drop_index(op.f('ix_ong_id_ong'), table_name='ong')
     op.drop_table('ong')
     op.drop_index(op.f('ix_noticia_id_noticia'), table_name='noticia')
     op.drop_table('noticia')
     op.drop_index(op.f('ix_denuncia_id_denuncia'), table_name='denuncia')
     op.drop_table('denuncia')
-    op.drop_index(op.f('ix_area_restauracao_id_area'), table_name='area_restauracao')
-    op.drop_table('area_restauracao')
     op.drop_index(op.f('ix_usuario_id_usuario'), table_name='usuario')
     op.drop_index(op.f('ix_usuario_email'), table_name='usuario')
     op.drop_table('usuario')

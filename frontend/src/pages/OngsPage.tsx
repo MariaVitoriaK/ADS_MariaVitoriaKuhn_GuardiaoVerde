@@ -1,5 +1,7 @@
 import { Box, Button, Card, CardActions, CardContent, CardMedia, Typography } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useNavigate } from 'react-router-dom';
 
 const ongs = [
     {
@@ -75,8 +77,19 @@ const ongs = [
 ];
 
 export default function OngsPage() {
+    const navigate = useNavigate();
+
     return (
         <Box component="main" className="ongs-page">
+            <Button
+                startIcon={<ArrowBackIcon />}
+                variant="outlined"
+                onClick={() => navigate('/dashboard')}
+                sx={{ mb: 3 }}
+            >
+                Voltar ao dashboard
+            </Button>
+
             <Box className="ongs-intro">
                 <Typography variant="overline" className="ongs-eyebrow">
                     Juntos pela natureza

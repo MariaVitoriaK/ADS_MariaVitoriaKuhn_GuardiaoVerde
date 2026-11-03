@@ -19,6 +19,12 @@ export const updateProfilePhoto = (formData: FormData) => api.put('/usuarios/me/
 export const updatePassword = (data: { senha_atual: string; nova_senha: string }) => api.put('/usuarios/me/senha', data);
 export const deleteAccount = () => api.delete('/usuarios/me');
 export const getUsers = () => api.get('/usuarios/');
-export const updateUserStatus = (id: number, status: 'ativo' | 'inativo' | 'banido') => api.put(`/usuarios/${id}/status`, { status });
+export type BloqueioDuracao = '30_dias' | '90_dias' | 'permanente';
+
+export const updateUserStatus = (
+    id: number,
+    status: 'ativo' | 'inativo' | 'banido',
+    duracao?: BloqueioDuracao,
+) => api.put(`/usuarios/${id}/status`, { status, duracao });
 
 export default api;

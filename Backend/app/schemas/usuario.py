@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.models.models import StatusUsuario, TipoUsuario
@@ -17,6 +18,7 @@ class UsuarioOut(BaseModel):
     email: EmailStr
     tipo_usuario: TipoUsuario
     status: StatusUsuario
+    bloqueado_ate: Optional[datetime] = None
     foto_perfil: Optional[str] = None
 
     class Config:
@@ -34,4 +36,5 @@ class UsuarioUpdateSenha(BaseModel):
     nova_senha: str
 
 class UsuarioStatusUpdate(BaseModel):
-    status: str # Ex: "ativo", "bloqueado"
+    status: str
+    duracao: Optional[str] = None
