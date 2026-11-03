@@ -131,7 +131,6 @@ const emptyForm = {
     titulo: '',
     descricao: '',
     categoria: categoriasDisponiveis[0],
-    localizacao: '',
     cidade: '',
     estado: '',
     latitude: '',
@@ -182,7 +181,7 @@ export default function DenunciarPage() {
             titulo: form.titulo || 'Denúncia sem título',
             descricao: form.descricao || 'Descrição não informada.',
             categoria: form.categoria || 'Outros',
-            localizacao: form.localizacao || 'Local não informado',
+            localizacao: 'Local não informado',
             cidade: form.cidade || 'Cidade não informada',
             estado: form.estado || 'SP',
             latitude: form.latitude || '0',
@@ -290,11 +289,6 @@ export default function DenunciarPage() {
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                             <TextField
-                                label="Localização"
-                                value={form.localizacao}
-                                onChange={(event) => handleFormChange('localizacao', event.target.value)}
-                            />
-                            <TextField
                                 label="Cidade"
                                 value={form.cidade}
                                 onChange={(event) => handleFormChange('cidade', event.target.value)}
@@ -304,19 +298,6 @@ export default function DenunciarPage() {
                                 value={form.estado}
                                 onChange={(event) => handleFormChange('estado', event.target.value)}
                             />
-                        </Stack>
-
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <Box sx={{ flex: 1 }}>
-                                <Button variant="outlined" onClick={() => setMapaAberto(true)}>
-                                    {form.latitude && form.longitude ? 'Alterar coordenadas no mapa' : 'Adicionar coordenadas'}
-                                </Button>
-                                {form.latitude && form.longitude && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                        Latitude: {form.latitude} • Longitude: {form.longitude}
-                                    </Typography>
-                                )}
-                            </Box>
                             <TextField
                                 type="date"
                                 label="Data da ocorrência"
@@ -324,6 +305,17 @@ export default function DenunciarPage() {
                                 onChange={(event) => handleFormChange('data_ocorrencia', event.target.value)}
                             />
                         </Stack>
+
+                        <Box sx={{ flex: 1 }}>
+                            <Button variant="outlined" onClick={() => setMapaAberto(true)}>
+                                {form.latitude && form.longitude ? 'Alterar coordenadas no mapa' : 'Adicionar coordenadas'}
+                            </Button>
+                            {form.latitude && form.longitude && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                    Latitude: {form.latitude} • Longitude: {form.longitude}
+                                </Typography>
+                            )}
+                        </Box>
 
                         <Box>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>Adicionar fotos</Typography>
@@ -427,9 +419,6 @@ export default function DenunciarPage() {
 
                         <Typography variant="body2" sx={{ mb: 1 }}>
                             <strong>Categoria:</strong> {denuncia.categoria}
-                        </Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            <strong>Local:</strong> {denuncia.localizacao}
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>
                             <strong>Data da ocorrência:</strong> {denuncia.data_ocorrencia}

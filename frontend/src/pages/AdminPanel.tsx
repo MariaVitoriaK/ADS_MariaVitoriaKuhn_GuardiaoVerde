@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Box,
@@ -16,6 +16,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -42,6 +43,19 @@ export default function AdminPanel() {
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [erro, setErro] = useState('');
     const [atualizando, setAtualizando] = useState<number | null>(null);
+    const [pesquisa, setPesquisa] = useState('');
+    const [filtroPermissao, setFiltroPermissao] = useState<'todos' | 'usuarios' | 'administradores'>('todos');
+
+    const usuariosFiltrados = useMemo(() => {
+        const termo = pesquisa.trim().toLowerCase();
+
+        return usuarios.filter((usuario) => {
+            const correspondePesquisa = !termo || [usuario.nome, usuario.email, usuario.tipo_usuario].join(' ').toLowerCase().includes(termo);
+            const correspondePermissao = filtroPermissao === 'todos'
+                || (filtroPermissao === 'usuarios' ? usuario.tipo_usuario !== 'administrador' : usuario.tipo_usuario === 'administrador');
+            return correspondePesquisa && correspondePermissao;
+        });
+    }, [filtroPermissao, pesquisa, usuarios]);
 
     useEffect(() => {
         const carregarUsuarios = async () => {
@@ -98,12 +112,42 @@ export default function AdminPanel() {
                     Voltar ao dashboard
                 </Button>
                 <Typography variant="h4" gutterBottom>Painel Administrativo</Typography>
-                <Button variant="contained" color="error" onClick={() => navigate('/admin/denuncias')}>
-                    Ver denúncias
-                </Button>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Button variant="contained" color="error" onClick={() => navigate('/admin/denuncias')}>
+                        Ver denúncias
+                    </Button>
+                    <Button variant="outlined" color="success" onClick={() => navigate('/admin/relatorios')}>
+                        Relatórios
+                    </Button>
+                </Stack>
             </Stack>
 
             {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
+
+            <Paper sx={{ p: 2, mb: 3, borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', gap: 2 }}>
+                    <TextField
+                        label="Pesquisar usuário"
+                        value={pesquisa}
+                        onChange={(event) => setPesquisa(event.target.value)}
+                        size="small"
+                        sx={{ minWidth: { xs: '100%', sm: 260 } }}
+                    />
+                    <FormControl size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel id="filtro-permissao-label">Permissão</InputLabel>
+                        <Select
+                            labelId="filtro-permissao-label"
+                            value={filtroPermissao}
+                            label="Permissão"
+                            onChange={(event) => setFiltroPermissao(event.target.value as 'todos' | 'usuarios' | 'administradores')}
+                        >
+                            <MenuItem value="todos">Todos</MenuItem>
+                            <MenuItem value="usuarios">Usuários</MenuItem>
+                            <MenuItem value="administradores">Administradores</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
+            </Paper>
 
             <TableContainer component={Paper} className="admin-table">
                 <Table>
@@ -118,7 +162,13 @@ export default function AdminPanel() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {usuarios.map((usuario) => {
+                        {usuariosFiltrados.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    Nenhum usuário encontrado para os filtros selecionados.
+                                </TableCell>
+                            </TableRow>
+                        ) : usuariosFiltrados.map((usuario) => {
                             const usuarioBloqueado = usuario.status !== 'ativo';
                             const tipo = usuario.tipo_usuario === 'administrador' ? 'administrador' : 'usuário';
                             const valorSelect = usuario.status === 'ativo' ? 'ativo' : usuario.status === 'inativo' ? 'inativo' : '30_dias';

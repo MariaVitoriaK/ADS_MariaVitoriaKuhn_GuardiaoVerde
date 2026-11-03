@@ -7,6 +7,7 @@ import Dashboard from '../pages/Dashboard';
 import DenunciarPage from '../pages/DenunciarPage';
 import AdminPanel from '../pages/AdminPanel';
 import AdminDenunciasPage from '../pages/AdminDenunciasPage';
+import AdminReportsPage from '../pages/AdminReportsPage';
 import NoticiaPage from '../pages/NoticiaPage';
 import OngsPage from '../pages/OngsPage';
 import PrivateRoute from './PrivateRoute';
@@ -31,6 +32,7 @@ function App() {
                 <Route element={<PrivateRoute adminOnly />}>
                     <Route path="/admin" element={<AdminPanel />} />
                     <Route path="/admin/denuncias" element={<AdminDenunciasPage />} />
+                    <Route path="/admin/relatorios" element={<AdminReportsPage />} />
                 </Route>
             </Routes>
         </Router>

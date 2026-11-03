@@ -101,18 +101,32 @@ export default function Dashboard() {
             </Button>
 
             {isAdmin && (
-                <Button
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                    sx={{ mt: 2, borderRadius: 2 }}
-                    onClick={() => {
-                        navigate('/admin');
-                        setMobileMenuOpen(false);
-                    }}
-                >
-                    Abrir painel admin
-                </Button>
+                <>
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        fullWidth
+                        sx={{ mt: 2, borderRadius: 2 }}
+                        onClick={() => {
+                            navigate('/admin');
+                            setMobileMenuOpen(false);
+                        }}
+                    >
+                        Painel admin
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        fullWidth
+                        sx={{ mt: 1, borderRadius: 2 }}
+                        onClick={() => {
+                            navigate('/admin/relatorios');
+                            setMobileMenuOpen(false);
+                        }}
+                    >
+                        Relatórios
+                    </Button>
+                </>
             )}
 
             <Button

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import {
     Alert, Avatar, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, TextField, Typography,
 } from '@mui/material';
@@ -34,6 +34,18 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
     const [formAberto, setFormAberto] = useState(false);
     const [salvandoNoticia, setSalvandoNoticia] = useState(false);
     const [novaNoticia, setNovaNoticia] = useState({ titulo: '', conteudo: '', imagem: '' });
+
+    const handleArquivoImagem = (event: ChangeEvent<HTMLInputElement>) => {
+        const arquivo = event.target.files?.[0];
+        if (!arquivo) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const imagemDataUrl = String(reader.result ?? '');
+            setNovaNoticia((atual) => ({ ...atual, imagem: imagemDataUrl }));
+        };
+        reader.readAsDataURL(arquivo);
+    };
 
     useEffect(() => {
         const carregarNoticias = async () => {
@@ -130,11 +142,18 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
                         value={novaNoticia.conteudo}
                         onChange={(event) => setNovaNoticia((atual) => ({ ...atual, conteudo: event.target.value }))}
                     />
-                    <TextField
-                        label="URL da imagem (opcional)"
-                        value={novaNoticia.imagem}
-                        onChange={(event) => setNovaNoticia((atual) => ({ ...atual, imagem: event.target.value }))}
-                    />
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Imagem da notícia</Typography>
+                        <input type="file" accept="image/*" onChange={handleArquivoImagem} />
+                        {novaNoticia.imagem && (
+                            <Box
+                                component="img"
+                                src={novaNoticia.imagem}
+                                alt="Pré-visualização da notícia"
+                                sx={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 2, mt: 2, border: '1px solid #d9d9d9' }}
+                            />
+                        )}
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setFormAberto(false)}>Cancelar</Button>
