@@ -134,13 +134,6 @@ npm run build
 npm run preview
 ```
 
-## Próximos passos
-
-- Ajustar a base de dados para produção
-- Configurar environment de staging/produção
-- Revisar segurança, rate limiting e backup de arquivos
-- Expandir relatórios e automações administrativas
-
 ---
 
 Este projeto foi desenvolvido como uma plataforma de engajamento ambiental e gestão comunitária, com foco em denúncias, educação e ação social.
