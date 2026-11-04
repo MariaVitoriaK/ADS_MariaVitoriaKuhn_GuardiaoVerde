@@ -14,6 +14,8 @@ import {
     Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 import {
     criaHistorico,
     getStoredDenuncias,
@@ -23,8 +25,17 @@ import {
     type DenunciaStatus,
 } from '../data/denuncias';
 
+const transicoesPermitidas: Record<DenunciaStatus, DenunciaStatus[]> = {
+    pendente: ['aceita', 'recusada'],
+    aceita: ['em_andamento'],
+    em_andamento: ['resolvida'],
+    resolvida: [],
+    recusada: [],
+};
+
 export default function AdminDenunciasPage() {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [denuncias, setDenuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
     const [pesquisa, setPesquisa] = useState('');
     const [statusFiltro, setStatusFiltro] = useState<'todos' | DenunciaStatus>('todos');
@@ -51,6 +62,7 @@ export default function AdminDenunciasPage() {
         setDenuncias((prev) => {
             const listaAtualizada = prev.map((denuncia) => {
                 if (denuncia.id_denuncia !== id) return denuncia;
+                if (!transicoesPermitidas[denuncia.status].includes(novoStatus)) return denuncia;
 
                 const historicoAtual = criaHistorico(
                     id,
@@ -58,6 +70,7 @@ export default function AdminDenunciasPage() {
                     novoStatus,
                     observacao,
                     new Date().toISOString(),
+                    { nome: user?.nome, username: user?.username },
                 );
 
                 return {
@@ -78,7 +91,7 @@ export default function AdminDenunciasPage() {
                 <Box>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>Denúncias recebidas</Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Painel administrativo para análise, aceite e atualização de status.
+                        Fluxo: pendente → aceita → em andamento → resolvida. Denúncias pendentes também podem ser recusadas.
                     </Typography>
                 </Box>
 
@@ -132,7 +145,11 @@ export default function AdminDenunciasPage() {
 
                             <Chip
                                 label={statusLabels[denuncia.status]}
-                                color={denuncia.status === 'pendente' ? 'warning' : denuncia.status === 'aceita' ? 'info' : denuncia.status === 'resolvida' ? 'success' : 'error'}
+                                color={
+                                    denuncia.status === 'pendente' ? 'warning'
+                                        : denuncia.status === 'aceita' || denuncia.status === 'em_andamento' ? 'info'
+                                            : denuncia.status === 'resolvida' ? 'success' : 'error'
+                                }
                                 size="small"
                             />
                         </Box>
@@ -153,10 +170,10 @@ export default function AdminDenunciasPage() {
                         </Typography>
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 3 }}>
-                            <Button variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'aceita', 'Denúncia aceita e encaminhada para análise técnica.')}>Aceitar</Button>
-                            <Button variant="contained" color="warning" onClick={() => atualizarStatus(denuncia.id_denuncia, 'em_andamento', 'Denúncia em andamento. A equipe foi acionada para acompanhar o caso.')}>Em andamento</Button>
-                            <Button variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'resolvida', 'Denúncia concluída após avaliação e intervenção realizada.')}>Concluir</Button>
-                            <Button variant="contained" color="error" onClick={() => atualizarStatus(denuncia.id_denuncia, 'recusada', 'Denúncia rejeitada por falta de evidência ou inconsistência de dados.')}>Recusar</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('aceita')} variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'aceita', 'Denúncia aceita e encaminhada para análise técnica.')}>Aceitar</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('em_andamento')} variant="contained" color="warning" onClick={() => atualizarStatus(denuncia.id_denuncia, 'em_andamento', 'Denúncia em andamento. A equipe foi acionada para acompanhar o caso.')}>Em andamento</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('resolvida')} variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'resolvida', 'Denúncia concluída após avaliação e intervenção realizada.')}>Concluir</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('recusada')} variant="contained" color="error" onClick={() => atualizarStatus(denuncia.id_denuncia, 'recusada', 'Denúncia rejeitada por falta de evidência ou inconsistência de dados.')}>Recusar</Button>
                         </Stack>
 
                         <Box>
@@ -165,6 +182,8 @@ export default function AdminDenunciasPage() {
                                 <Paper key={historico.id_historico} sx={{ p: 2, mb: 1, backgroundColor: '#f7f7f7', borderRadius: 2 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         {new Date(historico.data_alteracao).toLocaleString('pt-BR')}
+                                        {historico.autor_username && ` • por @${historico.autor_username}`}
+                                        {!historico.autor_username && historico.autor_nome && ` • por ${historico.autor_nome}`}
                                     </Typography>
                                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                                         {statusLabels[historico.status_anterior]} → {statusLabels[historico.novo_status]}

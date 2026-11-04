@@ -5,13 +5,16 @@ interface UserSession {
     email: string;
     role: 'admin' | 'user';
     nome?: string;
+    username?: string;
     foto_perfil?: string | null;
+    administrador_principal?: boolean;
 }
 
 interface AuthContextData {
     signed: boolean;
     user: UserSession | null;
     isAdmin: boolean;
+    isAdminPrincipal: boolean;
     login: (token: string, user?: UserSession | string) => void;
     logout: () => void;
     updateUser: (user: Partial<UserSession>) => void;
@@ -48,6 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             ? {
                 email: userData.trim(),
                 role: userData.trim().toLowerCase() === 'admin@email.com' ? 'admin' : 'user',
+                administrador_principal: userData.trim().toLowerCase() === 'admin@email.com',
             }
             : userData ?? null;
 
@@ -80,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             signed: !!token,
             user,
             isAdmin: user?.role === 'admin' || user?.email.toLowerCase() === 'admin@email.com',
+            isAdminPrincipal: user?.administrador_principal === true || user?.email.toLowerCase() === 'admin@email.com',
             login,
             logout,
             updateUser,

@@ -15,6 +15,8 @@ interface Noticia {
     titulo: string;
     conteudo: string;
     imagem?: string | null;
+    autor_nome?: string | null;
+    autor_username?: string | null;
     total_curtidas: number;
     total_comentarios: number;
     curtida_pelo_usuario: boolean;
@@ -225,6 +227,11 @@ export default function FeedNoticias({ isAdmin = false }: { isAdmin?: boolean })
                             <Typography component="h2" variant="h5" sx={{ fontWeight: 'bold', transition: 'color 0.2s' }}>
                                 {noticia.titulo}
                             </Typography>
+                            {noticia.autor_username && (
+                                <Typography variant="caption" color="success.dark" sx={{ display: 'block', mt: 0.5 }}>
+                                    Publicada por {noticia.autor_nome ?? 'Administrador'} (@{noticia.autor_username})
+                                </Typography>
+                            )}
                             <Typography
                                 variant="body1"
                                 color="text.secondary"

@@ -98,3 +98,14 @@ def get_current_admin_user(
             detail="Privilégios de administrador necessários.",
         )
     return current_user
+
+
+def get_current_primary_admin_user(
+    current_user: Usuario = Depends(get_current_admin_user),
+):
+    if not current_user.administrador_principal:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas o administrador principal pode gerenciar outros administradores.",
+        )
+    return current_user

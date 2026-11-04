@@ -2,6 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func
 from app.database import SessionLocal
 from app.models.models import StatusUsuario, TipoUsuario, Usuario
 from app.core.security import get_password_hash
@@ -28,15 +29,29 @@ def ensure_default_admin() -> None:
     try:
         admin = db.query(Usuario).filter(Usuario.email == "admin@email.com").first()
         if admin is None:
+            username = "admin"
+            sufixo = 1
+            while db.query(Usuario).filter(func.lower(Usuario.username) == username).first():
+                username = f"admin.principal{sufixo}"
+                sufixo += 1
             db.add(
                 Usuario(
                     nome="Administrador",
+                    username=username,
                     email="admin@email.com",
                     senha_hash=get_password_hash("admin"),
                     tipo_usuario=TipoUsuario.administrador,
+                    administrador_principal=True,
                     status=StatusUsuario.ativo,
                 )
             )
+            db.commit()
+        elif (
+            admin.tipo_usuario != TipoUsuario.administrador
+            or not admin.administrador_principal
+        ):
+            admin.tipo_usuario = TipoUsuario.administrador
+            admin.administrador_principal = True
             db.commit()
     finally:
         db.close()

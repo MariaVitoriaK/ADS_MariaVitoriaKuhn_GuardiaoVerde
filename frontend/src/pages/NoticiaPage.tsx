@@ -12,8 +12,9 @@ import { createComentario, fetchNoticia, toggleCurtirNoticia } from '../services
 
 interface Comentario {
     id_comentario: number;
-    id_usuario: number;
+    id_usuario: number | null;
     nome_usuario: string;
+    username_usuario: string;
     foto_perfil?: string | null;
     texto: string;
     data_comentario: string;
@@ -24,6 +25,8 @@ interface Noticia {
     titulo: string;
     conteudo: string;
     imagem?: string | null;
+    autor_nome?: string | null;
+    autor_username?: string | null;
     data_publicacao: string;
     total_curtidas: number;
     total_comentarios: number;
@@ -124,6 +127,11 @@ export default function NoticiaPage() {
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                                 Publicada em {new Date(noticia.data_publicacao).toLocaleDateString('pt-BR')}
                             </Typography>
+                            {noticia.autor_username && (
+                                <Typography variant="body2" color="success.dark" sx={{ mb: 2 }}>
+                                    Publicada por {noticia.autor_nome ?? 'Administrador'} (@{noticia.autor_username})
+                                </Typography>
+                            )}
                             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
                                 {noticia.conteudo}
                             </Typography>
@@ -168,7 +176,12 @@ export default function NoticiaPage() {
                                             {comentario.nome_usuario.charAt(0).toUpperCase()}
                                         </Avatar>
                                         <Box>
-                                            <Typography variant="subtitle2">{comentario.nome_usuario}</Typography>
+                                            <Typography variant="subtitle2">@{comentario.username_usuario}</Typography>
+                                            {comentario.nome_usuario !== comentario.username_usuario && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                    {comentario.nome_usuario}
+                                                </Typography>
+                                            )}
                                             <Typography variant="caption" color="text.secondary">
                                                 {new Date(comentario.data_comentario).toLocaleString('pt-BR')}
                                             </Typography>

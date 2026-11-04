@@ -91,6 +91,10 @@ Ao iniciar a aplicação, o sistema cria automaticamente um administrador:
 - E-mail: `admin@email.com`
 - Senha: `admin`
 
+Esse usuário é o administrador principal. Somente ele pode cadastrar, bloquear ou excluir administradores secundários. Para cadastrar Paulo Oliveira, Tomas Dias e Alice Torres, entre com o administrador principal e use **Adicionar administrador** no painel. Cada conta exige e-mail, username e uma senha inicial com pelo menos oito caracteres.
+
+Todos os usuários têm um username único, usado para identificar autores de comentários e publicações. Cadastros antigos recebem um username baseado no nome durante a migração.
+
 ## Fluxos principais
 
 ### Autenticação
@@ -108,6 +112,8 @@ Ao iniciar a aplicação, o sistema cria automaticamente um administrador:
 - `DELETE /usuarios/me`
 - `GET /usuarios/` listagem para admin
 - `PUT /usuarios/{id}/status` bloqueio/desbloqueio admin
+- `POST /usuarios/administradores` cadastro de administrador secundário (administrador principal)
+- `DELETE /usuarios/{id}` exclusão de administrador secundário (administrador principal)
 
 ### Notícias
 
@@ -141,7 +147,7 @@ cd Backend
 alembic upgrade head
 ```
 
-Se necessário, configure a conexão correta antes de rodar as migrações.
+Execute a migração antes de iniciar uma versão atualizada da API. Ela cria usernames para contas existentes e adiciona os campos de autoria usados para manter o histórico mesmo após a exclusão de uma conta. Configure a conexão correta antes de rodar as migrações.
 
 ## Uploads
 

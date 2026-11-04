@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Date, Numeric, ForeignKey, Enum
+from sqlalchemy import Boolean, Column, Index, Integer, String, Text, DateTime, Date, Numeric, ForeignKey, Enum, func
 from sqlalchemy.orm import relationship
 import enum
 from app.database import Base
@@ -17,13 +17,19 @@ class Usuario(Base):
     __tablename__ = "usuario"
     id_usuario = Column(Integer, primary_key=True, index=True)
     nome = Column(String, nullable=False)
+    username = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
     foto_perfil = Column(String)
     tipo_usuario = Column(Enum(TipoUsuario), default=TipoUsuario.usuario)
+    administrador_principal = Column(Boolean, default=False, nullable=False)
     status = Column(Enum(StatusUsuario), default=StatusUsuario.ativo)
     bloqueado_ate = Column(DateTime, nullable=True)
     data_cadastro = Column(DateTime)
+
+
+Index("uq_usuario_username_lower", func.lower(Usuario.username), unique=True)
+
 
 class Denuncia(Base):
     __tablename__ = "denuncia"
@@ -50,6 +56,8 @@ class HistoricoDenuncia(Base):
     status_anterior = Column(String)
     novo_status = Column(String)
     observacao = Column(Text)
+    nome_admin = Column(String)
+    username_admin = Column(String)
     data_alteracao = Column(DateTime)
 
 class Foto(Base):
@@ -64,20 +72,26 @@ class Noticia(Base):
     __tablename__ = "noticia"
     id_noticia = Column(Integer, primary_key=True, index=True)
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
+    autor_nome = Column(String)
+    autor_username = Column(String)
     titulo = Column(String)
     conteudo = Column(Text)
     imagem = Column(String)
     data_publicacao = Column(DateTime)
     status = Column(String)
+    autor = relationship("Usuario", foreign_keys=[id_usuario])
 
 class Comentario(Base):
     __tablename__ = "comentario"
     id_comentario = Column(Integer, primary_key=True, index=True)
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
+    nome_usuario_autor = Column(String)
+    username_usuario_autor = Column(String)
     id_noticia = Column(Integer, ForeignKey("noticia.id_noticia"))
     texto = Column(Text)
     data_comentario = Column(DateTime)
     status = Column(String)
+    autor = relationship("Usuario", foreign_keys=[id_usuario])
 
 class Curtida(Base):
     __tablename__ = "curtida"

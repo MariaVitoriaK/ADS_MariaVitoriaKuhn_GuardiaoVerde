@@ -7,6 +7,8 @@ export interface HistoricoDenuncia {
     novo_status: DenunciaStatus;
     observacao: string;
     data_alteracao: string;
+    autor_nome?: string;
+    autor_username?: string;
 }
 
 export interface Denuncia {
@@ -42,6 +44,7 @@ export const criaHistorico = (
     novoStatus: DenunciaStatus,
     observacao: string,
     dataAlteracao: string,
+    autor?: { nome?: string; username?: string },
 ): HistoricoDenuncia => ({
     id_historico: Date.now() + Math.floor(Math.random() * 1000),
     id_denuncia: idDenuncia,
@@ -49,6 +52,8 @@ export const criaHistorico = (
     novo_status: novoStatus,
     observacao,
     data_alteracao: dataAlteracao,
+    autor_nome: autor?.nome,
+    autor_username: autor?.username,
 });
 
 export const initialDenuncias: Denuncia[] = [];

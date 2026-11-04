@@ -12,14 +12,15 @@ import api, { deleteAccount, getCurrentUser, updatePassword, updateProfile, upda
 
 interface PerfilUsuario {
     nome: string;
+    username: string;
     email: string;
     foto_perfil?: string | null;
 }
 
 export default function Perfil() {
     const navigate = useNavigate();
-    const { logout, login, isAdmin, updateUser } = useContext(AuthContext);
-    const [perfil, setPerfil] = useState<PerfilUsuario>({ nome: '', email: '' });
+    const { logout, login, updateUser } = useContext(AuthContext);
+    const [perfil, setPerfil] = useState<PerfilUsuario>({ nome: '', username: '', email: '' });
     const [foto, setFoto] = useState<File | null>(null);
     const [fotoPreview, setFotoPreview] = useState<string>();
     const [senhaAtual, setSenhaAtual] = useState('');
@@ -35,8 +36,15 @@ export default function Perfil() {
     useEffect(() => {
         getCurrentUser()
             .then(({ data }) => {
-                setPerfil({ nome: data.nome, email: data.email, foto_perfil: data.foto_perfil });
-                updateUser({ nome: data.nome, email: data.email, foto_perfil: data.foto_perfil });
+                setPerfil({ nome: data.nome, username: data.username, email: data.email, foto_perfil: data.foto_perfil });
+                updateUser({
+                    nome: data.nome,
+                    username: data.username,
+                    email: data.email,
+                    foto_perfil: data.foto_perfil,
+                    administrador_principal: data.administrador_principal,
+                    role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
+                });
             })
             .catch((error) => {
                 console.error('Erro ao carregar perfil', error);
@@ -74,12 +82,18 @@ export default function Perfil() {
         setMensagem('');
         setErro('');
         try {
-            const { data } = await updateProfile({ nome: perfil.nome.trim(), email: perfil.email.trim() });
+            const { data } = await updateProfile({
+                nome: perfil.nome.trim(),
+                username: perfil.username.trim(),
+                email: perfil.email.trim(),
+            });
             login(data.access_token, {
                 email: data.email,
-                role: isAdmin ? 'admin' : 'user',
+                role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
                 nome: data.nome,
+                username: data.username,
                 foto_perfil: data.foto_perfil,
+                administrador_principal: data.administrador_principal,
             });
             let fotoAtualizada = data.foto_perfil;
             if (foto) {
@@ -89,8 +103,15 @@ export default function Perfil() {
                 fotoAtualizada = respostaFoto.data.foto_perfil;
                 setFoto(null);
             }
-            setPerfil({ nome: data.nome, email: data.email, foto_perfil: fotoAtualizada });
-            updateUser({ nome: data.nome, email: data.email, foto_perfil: fotoAtualizada });
+            setPerfil({ nome: data.nome, username: data.username, email: data.email, foto_perfil: fotoAtualizada });
+            updateUser({
+                nome: data.nome,
+                username: data.username,
+                email: data.email,
+                foto_perfil: fotoAtualizada,
+                administrador_principal: data.administrador_principal,
+                role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
+            });
             setMensagem('Perfil atualizado com sucesso.');
         } catch (error) {
             console.error('Erro ao atualizar perfil', error);
@@ -181,6 +202,15 @@ export default function Perfil() {
                         margin="normal"
                         value={perfil.nome}
                         onChange={(event) => setPerfil((atual) => ({ ...atual, nome: event.target.value }))}
+                    />
+                    <TextField
+                        fullWidth
+                        required
+                        label="Username"
+                        margin="normal"
+                        value={perfil.username}
+                        onChange={(event) => setPerfil((atual) => ({ ...atual, username: event.target.value }))}
+                        helperText="Único; 3 a 30 letras, números, ponto, hífen ou sublinhado."
                     />
                     <TextField
                         fullWidth

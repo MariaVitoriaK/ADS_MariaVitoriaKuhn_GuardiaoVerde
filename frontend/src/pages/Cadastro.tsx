@@ -6,6 +6,7 @@ import api from '../services/api';
 
 export default function Cadastro() {
     const [nome, setNome] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState('');
@@ -16,7 +17,7 @@ export default function Cadastro() {
         setErro('');
 
         try {
-            await api.post('/usuarios/', { nome, email, senha });
+            await api.post('/usuarios/', { nome, username, email, senha });
             alert('Cadastro realizado com sucesso! Faça login.');
             navigate('/login');
         } catch (err: unknown) {
@@ -49,6 +50,16 @@ export default function Cadastro() {
                 {erro && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{erro}</Alert>}
 
                 <Box component="form" onSubmit={handleCadastro} sx={{ mt: 1 }}>
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        label="Username"
+                        autoComplete="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        helperText="Único; use de 3 a 30 letras, números, ponto, hífen ou sublinhado."
+                    />
                     <TextField
                         margin="normal"
                         required

@@ -2,7 +2,7 @@ import { useState, useContext } from 'react';
 import { Button, TextField, Typography, Container, Box, Link, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import api from '../services/api';
+import api, { getCurrentUser } from '../services/api';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -26,9 +26,14 @@ export default function Login() {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
-            const usuario: { email: string; role: 'admin' | 'user' } = {
-                email: emailNormalizado,
-                role: emailNormalizado === 'admin@email.com' ? 'admin' : 'user',
+            const { data: usuarioAutenticado } = await getCurrentUser(response.data.access_token);
+            const usuario = {
+                email: usuarioAutenticado.email,
+                username: usuarioAutenticado.username,
+                nome: usuarioAutenticado.nome,
+                foto_perfil: usuarioAutenticado.foto_perfil,
+                role: usuarioAutenticado.tipo_usuario === 'administrador' ? 'admin' as const : 'user' as const,
+                administrador_principal: usuarioAutenticado.administrador_principal,
             };
             login(response.data.access_token, usuario);
             navigate('/dashboard');

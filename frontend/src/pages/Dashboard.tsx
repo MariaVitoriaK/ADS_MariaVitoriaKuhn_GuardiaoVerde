@@ -27,7 +27,13 @@ export default function Dashboard() {
 
     useEffect(() => {
         getCurrentUser()
-            .then(({ data }) => updateUser({ nome: data.nome, foto_perfil: data.foto_perfil }))
+            .then(({ data }) => updateUser({
+                nome: data.nome,
+                username: data.username,
+                foto_perfil: data.foto_perfil,
+                role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
+                administrador_principal: data.administrador_principal,
+            }))
             .catch((error) => console.error('Erro ao carregar o perfil do usuário', error));
     }, [updateUser]);
 

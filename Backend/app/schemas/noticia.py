@@ -4,8 +4,9 @@ from datetime import datetime
 
 class ComentarioOut(BaseModel):
     id_comentario: int
-    id_usuario: int
+    id_usuario: Optional[int] = None
     nome_usuario: str
+    username_usuario: str
     foto_perfil: Optional[str] = None
     texto: str
     data_comentario: datetime
@@ -24,7 +25,9 @@ class NoticiaCreate(NoticiaBase):
 
 class NoticiaOut(NoticiaBase):
     id_noticia: int
-    id_usuario: int
+    id_usuario: Optional[int] = None
+    autor_nome: Optional[str] = None
+    autor_username: Optional[str] = None
     data_publicacao: datetime
     comentarios: list[ComentarioOut] = Field(default_factory=list)
     total_comentarios: int = 0

@@ -1,12 +1,15 @@
 from pathlib import Path
+import re
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.database import get_db
-from app.models.models import Curtida, StatusUsuario, TipoUsuario, Usuario
-from app.schemas.usuario import UsuarioCreate, UsuarioOut, UsuarioPerfilAtualizado, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
-from app.core.security import atualizar_status_bloqueio_automatico, create_access_token, get_current_active_user, get_current_admin_user, get_password_hash, verify_password
+from app.models.models import Comentario, Curtida, Denuncia, HistoricoDenuncia, Noticia, ONG, StatusUsuario, TipoUsuario, Usuario
+from app.schemas.usuario import UsuarioAdminCreate, UsuarioCreate, UsuarioOut, UsuarioPerfilAtualizado, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
+from app.core.security import atualizar_status_bloqueio_automatico, create_access_token, get_current_active_user, get_current_admin_user, get_current_primary_admin_user, get_password_hash, verify_password
 
 router = APIRouter(prefix="/usuarios", tags=["Usuários"])
 PROFILE_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "profiles"
@@ -18,24 +21,85 @@ PROFILE_IMAGE_TYPES = {
 }
 MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024
 
+def validar_username(username: str, db: Session, id_usuario: int | None = None) -> str:
+    username_normalizado = username.strip().lower()
+    if not re.fullmatch(r"[a-z0-9._-]{3,30}", username_normalizado):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O username deve ter de 3 a 30 caracteres: letras, números, ponto, hífen ou sublinhado.",
+        )
+
+    consulta = db.query(Usuario).filter(func.lower(Usuario.username) == username_normalizado)
+    if id_usuario is not None:
+        consulta = consulta.filter(Usuario.id_usuario != id_usuario)
+    if consulta.first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username já está em uso.")
+    return username_normalizado
+
 @router.post("/", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
-    usuario_existente = db.query(Usuario).filter(Usuario.email == dados.email).first()
+    email = str(dados.email).strip().lower()
+    usuario_existente = db.query(Usuario).filter(func.lower(Usuario.email) == email).first()
     if usuario_existente:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail já está em uso.")
 
     usuario = Usuario(
         nome=dados.nome,
-        email=dados.email,
+        username=validar_username(dados.username, db),
+        email=email,
         senha_hash=get_password_hash(dados.senha),
         tipo_usuario=TipoUsuario.usuario,
         status=StatusUsuario.ativo,
         data_cadastro=datetime.now(),
     )
     db.add(usuario)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail ou username já está em uso.") from error
     db.refresh(usuario)
     return usuario
+
+
+@router.post("/administradores", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
+def criar_administrador_secundario(
+    dados: UsuarioAdminCreate,
+    db: Session = Depends(get_db),
+    current_admin: Usuario = Depends(get_current_primary_admin_user),
+):
+    if not current_admin.administrador_principal:
+        raise HTTPException(status_code=403, detail="Apenas o administrador principal pode criar administradores.")
+
+    nome = dados.nome.strip()
+    if db.query(Usuario).filter(
+        func.lower(Usuario.nome) == nome.lower(),
+        Usuario.tipo_usuario == TipoUsuario.administrador,
+    ).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Já existe um administrador com esse nome.")
+
+    email = str(dados.email).strip().lower()
+    if db.query(Usuario).filter(func.lower(Usuario.email) == email).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail já está em uso.")
+
+    administrador = Usuario(
+        nome=nome,
+        username=validar_username(dados.username, db),
+        email=email,
+        senha_hash=get_password_hash(dados.senha),
+        tipo_usuario=TipoUsuario.administrador,
+        administrador_principal=False,
+        status=StatusUsuario.ativo,
+        data_cadastro=datetime.now(),
+    )
+    db.add(administrador)
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail ou username já está em uso.") from error
+    db.refresh(administrador)
+    return administrador
 
 # ==========================================
 # ROTAS DE AUTOGERENCIAMENTO (Meu Perfil)
@@ -53,20 +117,30 @@ def atualizar_perfil(
 ):
     if dados.nome:
         current_user.nome = dados.nome
+    if dados.username is not None:
+        current_user.username = validar_username(dados.username, db, current_user.id_usuario)
     if dados.email:
-        # Verifica se o novo e-mail já está em uso
-        email_em_uso = db.query(Usuario).filter(Usuario.email == dados.email).first()
+        email_normalizado = str(dados.email).strip().lower()
+        if current_user.administrador_principal and email_normalizado != "admin@email.com":
+            raise HTTPException(status_code=400, detail="O e-mail do administrador principal não pode ser alterado.")
+        email_em_uso = db.query(Usuario).filter(func.lower(Usuario.email) == email_normalizado).first()
         if email_em_uso and email_em_uso.id_usuario != current_user.id_usuario:
             raise HTTPException(status_code=400, detail="E-mail já está em uso.")
-        current_user.email = dados.email
+        current_user.email = email_normalizado
         
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail ou username já está em uso.") from error
     db.refresh(current_user)
     return {
         "id_usuario": current_user.id_usuario,
         "nome": current_user.nome,
+        "username": current_user.username,
         "email": current_user.email,
         "tipo_usuario": current_user.tipo_usuario,
+        "administrador_principal": current_user.administrador_principal,
         "status": current_user.status,
         "foto_perfil": current_user.foto_perfil,
         "access_token": create_access_token({"sub": current_user.email}),
@@ -115,9 +189,41 @@ def remover_curtidas_do_usuario(db: Session, id_usuario: int):
     db.query(Curtida).filter(Curtida.id_usuario == id_usuario).delete(synchronize_session=False)
 
 
+def preservar_autorias_antes_de_excluir(db: Session, usuario: Usuario):
+    db.query(Noticia).filter(Noticia.id_usuario == usuario.id_usuario).update(
+        {Noticia.autor_nome: usuario.nome, Noticia.autor_username: usuario.username, Noticia.id_usuario: None},
+        synchronize_session=False,
+    )
+    db.query(Comentario).filter(Comentario.id_usuario == usuario.id_usuario).update(
+        {
+            Comentario.nome_usuario_autor: usuario.nome,
+            Comentario.username_usuario_autor: usuario.username,
+            Comentario.id_usuario: None,
+        },
+        synchronize_session=False,
+    )
+    db.query(HistoricoDenuncia).filter(HistoricoDenuncia.id_usuario == usuario.id_usuario).update(
+        {
+            HistoricoDenuncia.nome_admin: usuario.nome,
+            HistoricoDenuncia.username_admin: usuario.username,
+            HistoricoDenuncia.id_usuario: None,
+        },
+        synchronize_session=False,
+    )
+    db.query(Denuncia).filter(Denuncia.id_usuario == usuario.id_usuario).update(
+        {Denuncia.id_usuario: None},
+        synchronize_session=False,
+    )
+    db.query(ONG).filter(ONG.id_usuario_cadastro == usuario.id_usuario).update(
+        {ONG.id_usuario_cadastro: None},
+        synchronize_session=False,
+    )
+
+
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_conta(db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_active_user)):
     remover_curtidas_do_usuario(db, current_user.id_usuario)
+    preservar_autorias_antes_de_excluir(db, current_user)
     db.delete(current_user)
     db.commit()
     return None
@@ -141,6 +247,13 @@ def alterar_status_usuario(
     usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    if usuario.administrador_principal:
+        raise HTTPException(status_code=403, detail="O administrador principal não pode ser bloqueado.")
+    if usuario.tipo_usuario == TipoUsuario.administrador and (
+        not current_admin.administrador_principal or current_admin.id_usuario == usuario.id_usuario
+    ):
+        raise HTTPException(status_code=403, detail="Apenas o administrador principal pode alterar outro administrador.")
 
     novo_status = dados.status.lower()
 
@@ -168,3 +281,26 @@ def alterar_status_usuario(
     db.refresh(usuario)
     atualizar_status_bloqueio_automatico(db, usuario)
     return usuario
+
+
+@router.delete("/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_administrador_secundario(
+    id_usuario: int,
+    db: Session = Depends(get_db),
+    current_admin: Usuario = Depends(get_current_primary_admin_user),
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    if (
+        usuario.tipo_usuario != TipoUsuario.administrador
+        or usuario.administrador_principal
+        or usuario.id_usuario == current_admin.id_usuario
+    ):
+        raise HTTPException(status_code=403, detail="Somente administradores secundários podem ser excluídos.")
+
+    remover_curtidas_do_usuario(db, usuario.id_usuario)
+    preservar_autorias_antes_de_excluir(db, usuario)
+    db.delete(usuario)
+    db.commit()
+    return None

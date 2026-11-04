@@ -142,4 +142,8 @@ Este projeto foi desenvolvido como uma plataforma de engajamento ambiental e ges
 
 arrumar o fluxo em denuncias,
 Adicionar mais administradores e nomear quem fez qual mudança,
+
+
 mandar um email para o usuario para receber atualizacoes sobre sua denuncia.
+curtir comentarios.
+

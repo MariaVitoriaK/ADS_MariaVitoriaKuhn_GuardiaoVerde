@@ -10,9 +10,12 @@ from app.core.security import get_current_active_user, get_current_admin_user
 router = APIRouter(prefix="/noticias", tags=["Notícias"])
 
 def serializar_noticia(noticia, total_curtidas, total_comentarios, curtida_pelo_usuario, comentarios=None):
+    autor = noticia.autor
     return {
         "id_noticia": noticia.id_noticia,
         "id_usuario": noticia.id_usuario,
+        "autor_nome": noticia.autor_nome or (autor.nome if autor else None),
+        "autor_username": noticia.autor_username or (autor.username if autor else None),
         "titulo": noticia.titulo,
         "conteudo": noticia.conteudo,
         "imagem": noticia.imagem,
@@ -95,7 +98,8 @@ def obter_noticia(
         {
             "id_comentario": comentario.id_comentario,
             "id_usuario": comentario.id_usuario,
-            "nome_usuario": autor.nome if autor else "Usuário",
+            "nome_usuario": comentario.nome_usuario_autor or (autor.nome if autor else "Usuário"),
+            "username_usuario": comentario.username_usuario_autor or (autor.username if autor else "usuario-removido"),
             "foto_perfil": autor.foto_perfil if autor else None,
             "texto": comentario.texto,
             "data_comentario": comentario.data_comentario,
@@ -128,12 +132,14 @@ def criar_noticia(
         imagem=noticia.imagem,
         status=noticia.status,
         id_usuario=admin.id_usuario,
+        autor_nome=admin.nome,
+        autor_username=admin.username,
         data_publicacao=datetime.utcnow(),
     )
     db.add(nova_noticia)
     db.commit()
     db.refresh(nova_noticia)
-    return nova_noticia
+    return serializar_noticia(nova_noticia, 0, 0, False)
 
 @router.post("/{id_noticia}/curtir")
 def curtir_noticia(
@@ -188,6 +194,8 @@ def comentar_noticia(
     comentario = Comentario(
         id_noticia=id_noticia,
         id_usuario=user.id_usuario,
+        nome_usuario_autor=user.nome,
+        username_usuario_autor=user.username,
         texto=texto,
         data_comentario=datetime.utcnow(),
         status="publicado",
