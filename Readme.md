@@ -137,3 +137,9 @@ npm run preview
 ---
 
 Este projeto foi desenvolvido como uma plataforma de engajamento ambiental e gestão comunitária, com foco em denúncias, educação e ação social.
+
+---
+
+arrumar o fluxo em denuncias,
+Adicionar mais administradores e nomear quem fez qual mudança,
+mandar um email para o usuario para receber atualizacoes sobre sua denuncia.
