@@ -71,6 +71,7 @@ cd Backend
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
+python -m pip install "psycopg[binary]==3.3.8"
 uvicorn app.main:app --reload
 ```
 

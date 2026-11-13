@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
     Alert,
     Box,
@@ -32,6 +32,7 @@ import {
     statusLabels,
     type Denuncia,
 } from '../data/denuncias';
+import { AuthContext } from '../contexts/AuthContext';
 
 type Coordenadas = {
     latitude: number;
@@ -141,6 +142,7 @@ const emptyForm = {
 
 export default function DenunciarPage() {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [denuncias, setDenuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
     const [showForm, setShowForm] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -178,6 +180,8 @@ export default function DenunciarPage() {
         const dados: Denuncia = {
             id_denuncia: proximoId,
             id_usuario: 999,
+            email_usuario: user?.email ?? 'nao-informado@guardiaoverde.local',
+            email_verificado: user?.email_verificado ?? false,
             titulo: form.titulo || 'Denúncia sem título',
             descricao: form.descricao || 'Descrição não informada.',
             categoria: form.categoria || 'Outros',

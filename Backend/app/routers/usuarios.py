@@ -1,15 +1,17 @@
 from pathlib import Path
 import re
 from uuid import uuid4
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from email_validator import EmailNotValidError, validate_email
 from app.database import get_db
 from app.models.models import Comentario, Curtida, Denuncia, HistoricoDenuncia, Noticia, ONG, StatusUsuario, TipoUsuario, Usuario
 from app.schemas.usuario import UsuarioAdminCreate, UsuarioCreate, UsuarioOut, UsuarioPerfilAtualizado, UsuarioUpdate, UsuarioUpdateSenha, UsuarioStatusUpdate
 from app.core.security import atualizar_status_bloqueio_automatico, create_access_token, get_current_active_user, get_current_admin_user, get_current_primary_admin_user, get_password_hash, verify_password
+from app.services.email_service import send_email_verification_email
 
 router = APIRouter(prefix="/usuarios", tags=["Usuários"])
 PROFILE_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "profiles"
@@ -36,6 +38,19 @@ def validar_username(username: str, db: Session, id_usuario: int | None = None) 
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username já está em uso.")
     return username_normalizado
 
+
+def validar_email_para_verificacao(email: str) -> str:
+    email_limpo = str(email or "").strip().lower()
+    if not email_limpo:
+        raise ValueError("E-mail obrigatório.")
+
+    try:
+        email_validado = validate_email(email_limpo, check_deliverability=False)
+    except EmailNotValidError as exc:
+        raise ValueError("E-mail inválido.") from exc
+
+    return email_validado.normalized
+
 @router.post("/", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
     email = str(dados.email).strip().lower()
@@ -50,6 +65,7 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
         senha_hash=get_password_hash(dados.senha),
         tipo_usuario=TipoUsuario.usuario,
         status=StatusUsuario.ativo,
+        email_verificado=False,
         data_cadastro=datetime.now(),
     )
     db.add(usuario)
@@ -90,6 +106,7 @@ def criar_administrador_secundario(
         tipo_usuario=TipoUsuario.administrador,
         administrador_principal=False,
         status=StatusUsuario.ativo,
+        email_verificado=False,
         data_cadastro=datetime.now(),
     )
     db.add(administrador)
@@ -109,6 +126,50 @@ def criar_administrador_secundario(
 def ler_usuario_logado(current_user: Usuario = Depends(get_current_active_user)):
     return current_user
 
+@router.post("/me/verificar-email", status_code=status.HTTP_200_OK)
+def solicitar_verificacao_email(
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    try:
+        email_validado = validar_email_para_verificacao(current_user.email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    token = uuid4().hex
+    current_user.email = email_validado
+    current_user.email_verificacao_token = token
+    current_user.email_verificacao_expira_em = datetime.utcnow() + timedelta(hours=24)
+    current_user.email_verificado = False
+    db.commit()
+
+    verification_link = f"http://localhost:5173/perfil?verificacao=ok&token={token}"
+    if background_tasks is not None:
+        background_tasks.add_task(
+            send_email_verification_email,
+            email_validado,
+            verification_link,
+            current_user.nome,
+        )
+
+    return {"message": "Solicitação de verificação enviada com sucesso.", "email_verificado": False}
+
+@router.get("/me/verificar-email/{token}", status_code=status.HTTP_200_OK)
+def confirmar_verificacao_email(token: str, db: Session = Depends(get_db)):
+    usuario = db.query(Usuario).filter(Usuario.email_verificacao_token == token).first()
+    if not usuario:
+        raise HTTPException(status_code=400, detail="Token de verificação inválido ou expirado.")
+
+    if usuario.email_verificacao_expira_em and datetime.utcnow() > usuario.email_verificacao_expira_em:
+        raise HTTPException(status_code=400, detail="Token expirado. Solicite uma nova verificação.")
+
+    usuario.email_verificado = True
+    usuario.email_verificacao_token = None
+    usuario.email_verificacao_expira_em = None
+    db.commit()
+    return {"message": "E-mail verificado com sucesso.", "email_verificado": True}
+
 @router.put("/me", response_model=UsuarioPerfilAtualizado)
 def atualizar_perfil(
     dados: UsuarioUpdate, 
@@ -120,13 +181,20 @@ def atualizar_perfil(
     if dados.username is not None:
         current_user.username = validar_username(dados.username, db, current_user.id_usuario)
     if dados.email:
-        email_normalizado = str(dados.email).strip().lower()
+        try:
+            email_normalizado = validar_email_para_verificacao(dados.email)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
         if current_user.administrador_principal and email_normalizado != "admin@email.com":
             raise HTTPException(status_code=400, detail="O e-mail do administrador principal não pode ser alterado.")
         email_em_uso = db.query(Usuario).filter(func.lower(Usuario.email) == email_normalizado).first()
         if email_em_uso and email_em_uso.id_usuario != current_user.id_usuario:
             raise HTTPException(status_code=400, detail="E-mail já está em uso.")
         current_user.email = email_normalizado
+        current_user.email_verificado = False
+        current_user.email_verificacao_token = None
+        current_user.email_verificacao_expira_em = None
         
     try:
         db.commit()
@@ -142,6 +210,7 @@ def atualizar_perfil(
         "tipo_usuario": current_user.tipo_usuario,
         "administrador_principal": current_user.administrador_principal,
         "status": current_user.status,
+        "email_verificado": current_user.email_verificado,
         "foto_perfil": current_user.foto_perfil,
         "access_token": create_access_token({"sub": current_user.email}),
     }

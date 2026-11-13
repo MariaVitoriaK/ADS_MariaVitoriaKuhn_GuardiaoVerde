@@ -15,6 +15,8 @@ export const updateProfile = (data: { nome?: string; username?: string; email?: 
 export const getCurrentUser = (token?: string) => api.get('/usuarios/me', token
     ? { headers: { Authorization: `Bearer ${token}` } }
     : undefined);
+export const requestEmailVerification = () => api.post('/usuarios/me/verificar-email');
+export const confirmEmailVerification = (token: string) => api.get(`/usuarios/me/verificar-email/${token}`);
 export const updateProfilePhoto = (formData: FormData) => api.put('/usuarios/me/foto', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });

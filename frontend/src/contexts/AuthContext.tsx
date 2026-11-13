@@ -8,6 +8,7 @@ interface UserSession {
     username?: string;
     foto_perfil?: string | null;
     administrador_principal?: boolean;
+    email_verificado?: boolean;
 }
 
 interface AuthContextData {
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 email: userData.trim(),
                 role: userData.trim().toLowerCase() === 'admin@email.com' ? 'admin' : 'user',
                 administrador_principal: userData.trim().toLowerCase() === 'admin@email.com',
+                email_verificado: false,
             }
             : userData ?? null;
 

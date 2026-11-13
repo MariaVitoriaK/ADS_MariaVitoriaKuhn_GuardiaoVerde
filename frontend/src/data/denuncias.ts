@@ -14,6 +14,8 @@ export interface HistoricoDenuncia {
 export interface Denuncia {
     id_denuncia: number;
     id_usuario: number;
+    email_usuario?: string;
+    email_verificado?: boolean;
     titulo: string;
     descricao: string;
     categoria: string;

@@ -3,6 +3,11 @@ import {
     Box,
     Button,
     Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     Divider,
     FormControl,
     InputLabel,
@@ -33,12 +38,28 @@ const transicoesPermitidas: Record<DenunciaStatus, DenunciaStatus[]> = {
     recusada: [],
 };
 
+const descricaoPadraoStatus = (status: DenunciaStatus) => {
+    switch (status) {
+        case 'aceita':
+            return 'Denúncia aceita e encaminhada para análise técnica.';
+        case 'em_andamento':
+            return 'Denúncia em andamento. A equipe foi acionada para acompanhar o caso.';
+        case 'resolvida':
+            return 'Denúncia concluída após avaliação e intervenção realizada.';
+        case 'recusada':
+            return 'Denúncia rejeitada por falta de evidência ou inconsistência de dados.';
+        default:
+            return 'Status atualizado pela administração.';
+    }
+};
+
 export default function AdminDenunciasPage() {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
     const [denuncias, setDenuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
     const [pesquisa, setPesquisa] = useState('');
     const [statusFiltro, setStatusFiltro] = useState<'todos' | DenunciaStatus>('todos');
+    const [statusDialog, setStatusDialog] = useState<{ id: number; status: DenunciaStatus; descricao: string } | null>(null);
 
     const denunciasFiltradas = useMemo(() => {
         const termo = pesquisa.trim().toLowerCase();
@@ -83,6 +104,22 @@ export default function AdminDenunciasPage() {
             persistDenuncias(listaAtualizada);
             return listaAtualizada;
         });
+    };
+
+    const abrirDialogStatus = (id: number, novoStatus: DenunciaStatus) => {
+        setStatusDialog({ id, status: novoStatus, descricao: descricaoPadraoStatus(novoStatus) });
+    };
+
+    const confirmarStatus = () => {
+        if (!statusDialog) return;
+
+        const descricaoFinal = statusDialog.descricao.trim();
+        if (!descricaoFinal) {
+            return;
+        }
+
+        atualizarStatus(statusDialog.id, statusDialog.status, descricaoFinal);
+        setStatusDialog(null);
     };
 
     return (
@@ -170,10 +207,10 @@ export default function AdminDenunciasPage() {
                         </Typography>
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 3 }}>
-                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('aceita')} variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'aceita', 'Denúncia aceita e encaminhada para análise técnica.')}>Aceitar</Button>
-                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('em_andamento')} variant="contained" color="warning" onClick={() => atualizarStatus(denuncia.id_denuncia, 'em_andamento', 'Denúncia em andamento. A equipe foi acionada para acompanhar o caso.')}>Em andamento</Button>
-                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('resolvida')} variant="contained" color="success" onClick={() => atualizarStatus(denuncia.id_denuncia, 'resolvida', 'Denúncia concluída após avaliação e intervenção realizada.')}>Concluir</Button>
-                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('recusada')} variant="contained" color="error" onClick={() => atualizarStatus(denuncia.id_denuncia, 'recusada', 'Denúncia rejeitada por falta de evidência ou inconsistência de dados.')}>Recusar</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('aceita')} variant="contained" color="success" onClick={() => abrirDialogStatus(denuncia.id_denuncia, 'aceita')}>Aceitar</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('em_andamento')} variant="contained" color="warning" onClick={() => abrirDialogStatus(denuncia.id_denuncia, 'em_andamento')}>Em andamento</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('resolvida')} variant="contained" color="success" onClick={() => abrirDialogStatus(denuncia.id_denuncia, 'resolvida')}>Concluir</Button>
+                            <Button disabled={!transicoesPermitidas[denuncia.status].includes('recusada')} variant="contained" color="error" onClick={() => abrirDialogStatus(denuncia.id_denuncia, 'recusada')}>Recusar</Button>
                         </Stack>
 
                         <Box>
@@ -197,6 +234,28 @@ export default function AdminDenunciasPage() {
                     </Paper>
                 ))}
             </Stack>
+
+            <Dialog open={Boolean(statusDialog)} onClose={() => setStatusDialog(null)} maxWidth="sm" fullWidth>
+                <DialogTitle>Finalizar mudança de status</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Descreva em uma frase o motivo da atualização para o usuário que enviou a denúncia.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        multiline
+                        minRows={4}
+                        fullWidth
+                        label="Descrição da alteração"
+                        value={statusDialog?.descricao ?? ''}
+                        onChange={(event) => setStatusDialog((atual) => atual ? { ...atual, descricao: event.target.value } : atual)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setStatusDialog(null)}>Cancelar</Button>
+                    <Button variant="contained" color="success" onClick={confirmarStatus}>Finalizar</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

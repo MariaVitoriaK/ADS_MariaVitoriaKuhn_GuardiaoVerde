@@ -196,6 +196,13 @@ class TestUsuarioBloqueio(unittest.TestCase):
         self.assertIsNone(historico.id_usuario)
         self.assertEqual(historico.username_admin, 'paulo.oliveira')
 
+    def test_verificacao_email_rejeita_endereco_invalido(self):
+        from app.routers.usuarios import validar_email_para_verificacao
+
+        self.assertTrue(validar_email_para_verificacao('usuario@gmail.com'))
+        with self.assertRaises(ValueError):
+            validar_email_para_verificacao('email-falso')
+
 
 if __name__ == '__main__':
     unittest.main()

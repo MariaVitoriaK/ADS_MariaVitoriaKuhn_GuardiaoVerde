@@ -6,7 +6,7 @@ from sqlalchemy import func
 from app.database import SessionLocal
 from app.models.models import StatusUsuario, TipoUsuario, Usuario
 from app.core.security import get_password_hash
-from app.routers import auth, noticias, usuarios
+from app.routers import auth, denuncias, noticias, usuarios
 
 app = FastAPI(title="Guardião Verde API", version="1.0.0")
 UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
@@ -61,6 +61,7 @@ ensure_default_admin()
 
 # Registrando as rotas
 app.include_router(auth.router)
+app.include_router(denuncias.router)
 app.include_router(noticias.router)
 app.include_router(usuarios.router)
 

@@ -8,7 +8,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import api, { deleteAccount, getCurrentUser, updatePassword, updateProfile, updateProfilePhoto } from '../services/api';
+import api, { deleteAccount, getCurrentUser, requestEmailVerification, updatePassword, updateProfile, updateProfilePhoto } from '../services/api';
 
 interface PerfilUsuario {
     nome: string;
@@ -32,6 +32,7 @@ export default function Perfil() {
     const [salvandoSenha, setSalvandoSenha] = useState(false);
     const [mensagem, setMensagem] = useState('');
     const [erro, setErro] = useState('');
+    const [verificandoEmail, setVerificandoEmail] = useState(false);
 
     useEffect(() => {
         getCurrentUser()
@@ -43,6 +44,7 @@ export default function Perfil() {
                     email: data.email,
                     foto_perfil: data.foto_perfil,
                     administrador_principal: data.administrador_principal,
+                    email_verificado: data.email_verificado,
                     role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
                 });
             })
@@ -64,10 +66,10 @@ export default function Perfil() {
     }, [foto]);
 
     const fotoUrl = fotoPreview ?? (perfil.foto_perfil
-            ? perfil.foto_perfil.startsWith('http')
-                ? perfil.foto_perfil
-                : `${api.defaults.baseURL}${perfil.foto_perfil}`
-            : undefined);
+        ? perfil.foto_perfil.startsWith('http')
+            ? perfil.foto_perfil
+            : `${api.defaults.baseURL}${perfil.foto_perfil}`
+        : undefined);
 
     const handleFotoSelecionada = (event: ChangeEvent<HTMLInputElement>) => {
         const arquivo = event.target.files?.[0] ?? null;
@@ -94,6 +96,7 @@ export default function Perfil() {
                 username: data.username,
                 foto_perfil: data.foto_perfil,
                 administrador_principal: data.administrador_principal,
+                email_verificado: data.email_verificado,
             });
             let fotoAtualizada = data.foto_perfil;
             if (foto) {
@@ -110,6 +113,7 @@ export default function Perfil() {
                 email: data.email,
                 foto_perfil: fotoAtualizada,
                 administrador_principal: data.administrador_principal,
+                email_verificado: data.email_verificado,
                 role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
             });
             setMensagem('Perfil atualizado com sucesso.');
@@ -118,6 +122,23 @@ export default function Perfil() {
             setErro('Não foi possível salvar as alterações. Verifique o e-mail e tente novamente.');
         } finally {
             setSalvandoPerfil(false);
+        }
+    };
+
+    const handleVerificarEmail = async () => {
+        setMensagem('');
+        setErro('');
+        setVerificandoEmail(true);
+
+        try {
+            await requestEmailVerification();
+            updateUser({ email_verificado: false });
+            setMensagem('Solicitação de verificação enviada. Confira seu e-mail para concluir a confirmação.');
+        } catch (error) {
+            console.error('Erro ao verificar e-mail', error);
+            setErro('Não foi possível enviar a verificação. Confira o e-mail informado e tente novamente.');
+        } finally {
+            setVerificandoEmail(false);
         }
     };
 
@@ -223,6 +244,15 @@ export default function Perfil() {
                     />
                     <Button type="submit" variant="contained" color="success" disabled={salvandoPerfil} sx={{ mt: 2 }}>
                         {salvandoPerfil ? 'Salvando…' : 'Salvar alterações'}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        onClick={() => void handleVerificarEmail()}
+                        disabled={verificandoEmail || !perfil.email}
+                        sx={{ mt: 2, ml: 1 }}
+                    >
+                        {verificandoEmail ? 'Enviando…' : 'Verificar e-mail'}
                     </Button>
                 </Box>
 

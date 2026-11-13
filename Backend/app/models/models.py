@@ -25,6 +25,9 @@ class Usuario(Base):
     administrador_principal = Column(Boolean, default=False, nullable=False)
     status = Column(Enum(StatusUsuario), default=StatusUsuario.ativo)
     bloqueado_ate = Column(DateTime, nullable=True)
+    email_verificado = Column(Boolean, default=False, nullable=False)
+    email_verificacao_token = Column(String, nullable=True)
+    email_verificacao_expira_em = Column(DateTime, nullable=True)
     data_cadastro = Column(DateTime)
 
 

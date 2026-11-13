@@ -28,6 +28,7 @@ class UsuarioOut(BaseModel):
     administrador_principal: bool = False
     status: StatusUsuario
     bloqueado_ate: Optional[datetime] = None
+    email_verificado: bool = False
     foto_perfil: Optional[str] = None
 
     class Config:

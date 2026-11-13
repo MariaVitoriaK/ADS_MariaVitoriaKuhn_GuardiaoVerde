@@ -30,9 +30,11 @@ export default function Dashboard() {
             .then(({ data }) => updateUser({
                 nome: data.nome,
                 username: data.username,
+                email: data.email,
                 foto_perfil: data.foto_perfil,
                 role: data.tipo_usuario === 'administrador' ? 'admin' : 'user',
                 administrador_principal: data.administrador_principal,
+                email_verificado: data.email_verificado,
             }))
             .catch((error) => console.error('Erro ao carregar o perfil do usuário', error));
     }, [updateUser]);
@@ -175,6 +177,14 @@ export default function Dashboard() {
             )}
 
             <Box sx={{ flexGrow: 1, p: isMobile ? 2 : 4, overflowY: 'auto' }} className="dashboard-main">
+                {!user?.email_verificado && user?.email && (
+                    <Box sx={{ mb: 2, p: 2, borderRadius: 2, backgroundColor: '#fff4e5', border: '1px solid #f7c875', color: '#7a4f00' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Verifique seu e-mail</Typography>
+                        <Typography variant="body2">
+                            Confirme seu endereço para receber atualizações sobre denúncias e notícias relevantes.
+                        </Typography>
+                    </Box>
+                )}
                 <FeedNoticias isAdmin={isAdmin} />
             </Box>
         </Box>
