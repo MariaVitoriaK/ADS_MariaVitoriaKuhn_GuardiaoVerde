@@ -13,7 +13,7 @@ def send_email(subject: str, recipient: str, body: str) -> bool:
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
     if not smtp_host:
-        print(f"[EMAIL] SMTP não configurado. E-mail para {recipient} em fila de envio: {subject}")
+        print(f"[EMAIL] SMTP_HOST não configurado. E-mail para {recipient} não foi enviado: {subject}")
         print(body)
         return False
 
@@ -31,6 +31,7 @@ def send_email(subject: str, recipient: str, body: str) -> bool:
             if smtp_user and smtp_password:
                 server.login(smtp_user, smtp_password)
             server.send_message(message)
+        print(f"[EMAIL] E-mail enviado com sucesso para {recipient}: {subject}")
         return True
     except Exception as exc:  # pragma: no cover - depends on SMTP environment
         print(f"[EMAIL] Falha ao enviar e-mail para {recipient}: {exc}")
@@ -49,12 +50,21 @@ def send_report_status_email(recipient: str, report_title: str, new_status: str,
     return send_email(subject, recipient, body)
 
 
-def send_email_verification_email(recipient: str, verification_link: str, user_name: str) -> bool:
+def send_email_verification_email(recipient: str, verification_code_or_link: str, user_name: str, verification_link: str | None = None) -> bool:
     subject = "Verifique seu e-mail no Guardião Verde"
-    body = (
-        f"Olá {user_name},\n\n"
-        "Para receber atualizações sobre denúncias e notícias, confirme seu e-mail.\n\n"
-        f"Clique no link abaixo:\n{verification_link}\n\n"
-        "Caso você não tenha solicitado essa verificação, ignore este e-mail."
-    )
-    return send_email(subject, recipient, body)
+    verification_code = verification_code_or_link if verification_code_or_link and verification_code_or_link.isdigit() and len(verification_code_or_link) == 6 else None
+    body_lines = [
+        f"Olá {user_name},",
+        "",
+        "Para receber atualizações sobre denúncias e notícias, confirme seu e-mail.",
+        "",
+    ]
+    if verification_code:
+        body_lines.append(f"Seu código de verificação é: {verification_code}")
+    if verification_link:
+        body_lines.append(f"Ou acesse este link: {verification_link}")
+    body_lines.extend([
+        "",
+        "Caso você não tenha solicitado essa verificação, ignore este e-mail.",
+    ])
+    return send_email(subject, recipient, "\n".join(body_lines))

@@ -8,7 +8,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import api, { deleteAccount, getCurrentUser, requestEmailVerification, updatePassword, updateProfile, updateProfilePhoto } from '../services/api';
+import api, { confirmEmailVerification, deleteAccount, getCurrentUser, requestEmailVerification, updatePassword, updateProfile, updateProfilePhoto } from '../services/api';
 
 interface PerfilUsuario {
     nome: string;
@@ -19,7 +19,7 @@ interface PerfilUsuario {
 
 export default function Perfil() {
     const navigate = useNavigate();
-    const { logout, login, updateUser } = useContext(AuthContext);
+    const { logout, login, updateUser, isAdmin } = useContext(AuthContext);
     const [perfil, setPerfil] = useState<PerfilUsuario>({ nome: '', username: '', email: '' });
     const [foto, setFoto] = useState<File | null>(null);
     const [fotoPreview, setFotoPreview] = useState<string>();
@@ -27,6 +27,9 @@ export default function Perfil() {
     const [novaSenha, setNovaSenha] = useState('');
     const [confirmarSenha, setConfirmarSenha] = useState('');
     const [openModal, setOpenModal] = useState(false);
+    const [openVerificationModal, setOpenVerificationModal] = useState(false);
+    const [codigoVerificacao, setCodigoVerificacao] = useState('');
+    const [statusCodigo, setStatusCodigo] = useState<'idle' | 'valid' | 'invalid'>('idle');
     const [loading, setLoading] = useState(true);
     const [salvandoPerfil, setSalvandoPerfil] = useState(false);
     const [salvandoSenha, setSalvandoSenha] = useState(false);
@@ -125,7 +128,15 @@ export default function Perfil() {
         }
     };
 
-    const handleVerificarEmail = async () => {
+    const handleVerificarEmail = () => {
+        setMensagem('');
+        setErro('');
+        setCodigoVerificacao('');
+        setStatusCodigo('idle');
+        setOpenVerificationModal(true);
+    };
+
+    const handleSolicitarCodigo = async () => {
         setMensagem('');
         setErro('');
         setVerificandoEmail(true);
@@ -133,12 +144,33 @@ export default function Perfil() {
         try {
             await requestEmailVerification();
             updateUser({ email_verificado: false });
-            setMensagem('Solicitação de verificação enviada. Confira seu e-mail para concluir a confirmação.');
+            setMensagem('Código enviado para o seu e-mail. Digite o código abaixo para concluir a confirmação.');
         } catch (error) {
             console.error('Erro ao verificar e-mail', error);
             setErro('Não foi possível enviar a verificação. Confira o e-mail informado e tente novamente.');
         } finally {
             setVerificandoEmail(false);
+        }
+    };
+
+    const handleConfirmarCodigo = async (codigo: string) => {
+        if (codigo.length !== 6) {
+            setStatusCodigo('idle');
+            return;
+        }
+
+        setErro('');
+        try {
+            const { data } = await confirmEmailVerification(codigo);
+            setStatusCodigo('valid');
+            setMensagem(data.message || 'E-mail verificado com sucesso.');
+            updateUser({ email_verificado: true });
+            setOpenVerificationModal(false);
+            setCodigoVerificacao('');
+        } catch (error) {
+            console.error('Código de verificação inválido', error);
+            setStatusCodigo('invalid');
+            setErro('Código incorreto ou expirado. Solicite um novo código.');
         }
     };
 
@@ -245,15 +277,17 @@ export default function Perfil() {
                     <Button type="submit" variant="contained" color="success" disabled={salvandoPerfil} sx={{ mt: 2 }}>
                         {salvandoPerfil ? 'Salvando…' : 'Salvar alterações'}
                     </Button>
-                    <Button
-                        variant="outlined"
-                        color="success"
-                        onClick={() => void handleVerificarEmail()}
-                        disabled={verificandoEmail || !perfil.email}
-                        sx={{ mt: 2, ml: 1 }}
-                    >
-                        {verificandoEmail ? 'Enviando…' : 'Verificar e-mail'}
-                    </Button>
+                    {!isAdmin && (
+                        <Button
+                            variant="outlined"
+                            color="success"
+                            onClick={() => handleVerificarEmail()}
+                            disabled={verificandoEmail || !perfil.email}
+                            sx={{ mt: 2, ml: 1 }}
+                        >
+                            {verificandoEmail ? 'Enviando…' : 'Verificar e-mail'}
+                        </Button>
+                    )}
                 </Box>
 
                 <Divider sx={{ my: 4 }} />
@@ -300,6 +334,57 @@ export default function Perfil() {
                     <Button onClick={() => void handleDeleteAccount()} color="error" variant="contained">
                         Confirmar exclusão
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={openVerificationModal} onClose={() => setOpenVerificationModal(false)} fullWidth maxWidth="xs">
+                <DialogTitle>Verificar e-mail</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Envie o código de confirmação para {perfil.email} e digite abaixo o valor recebido.
+                    </DialogContentText>
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        color="success"
+                        onClick={() => void handleSolicitarCodigo()}
+                        disabled={verificandoEmail}
+                        sx={{ mb: 2 }}
+                    >
+                        {verificandoEmail ? 'Enviando código…' : 'Enviar código para o e-mail'}
+                    </Button>
+                    <TextField
+                        fullWidth
+                        label="Código de verificação"
+                        value={codigoVerificacao}
+                        onChange={(event) => {
+                            const valor = event.target.value.replace(/\D/g, '').slice(0, 6);
+                            setCodigoVerificacao(valor);
+                            if (valor.length === 6) {
+                                void handleConfirmarCodigo(valor);
+                            } else {
+                                setStatusCodigo('idle');
+                            }
+                        }}
+                        slotProps={{
+                            htmlInput: { inputMode: 'numeric', maxLength: 6 },
+                            formHelperText: {
+                                sx: {
+                                    color: statusCodigo === 'valid' ? 'success.main' : statusCodigo === 'invalid' ? 'error.main' : 'text.secondary',
+                                },
+                            },
+                        }}
+                        helperText={
+                            statusCodigo === 'valid'
+                                ? 'Código correto.'
+                                : statusCodigo === 'invalid'
+                                    ? 'Código incorreto. Solicite outro código.'
+                                    : 'Digite os 6 números recebidos.'
+                        }
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenVerificationModal(false)}>Fechar</Button>
                 </DialogActions>
             </Dialog>
         </Box>

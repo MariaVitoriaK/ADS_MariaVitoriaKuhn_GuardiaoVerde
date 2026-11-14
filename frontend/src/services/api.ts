@@ -16,13 +16,22 @@ export const getCurrentUser = (token?: string) => api.get('/usuarios/me', token
     ? { headers: { Authorization: `Bearer ${token}` } }
     : undefined);
 export const requestEmailVerification = () => api.post('/usuarios/me/verificar-email');
-export const confirmEmailVerification = (token: string) => api.get(`/usuarios/me/verificar-email/${token}`);
+export const confirmEmailVerification = (codigo: string) => api.post('/usuarios/me/verificar-email/confirmar', { codigo });
 export const updateProfilePhoto = (formData: FormData) => api.put('/usuarios/me/foto', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });
 export const updatePassword = (data: { senha_atual: string; nova_senha: string }) => api.put('/usuarios/me/senha', data);
 export const deleteAccount = () => api.delete('/usuarios/me');
 export const getUsers = () => api.get('/usuarios/');
+export const getDenuncias = () => api.get('/denuncias/');
+export const getMinhasDenuncias = () => api.get('/denuncias/me');
+export const createDenuncia = (data: Record<string, unknown>) => api.post('/denuncias/', data);
+export const updateDenunciaStatus = (id: number, status: string, observacao: string) => api.post(`/denuncias/${id}/status`, null, {
+    params: {
+        novo_status: status,
+        observacao,
+    },
+});
 export interface AdminAccountInput {
     nome: string;
     username: string;

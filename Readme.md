@@ -58,7 +58,16 @@ Crie um arquivo `Backend/.env` com algo semelhante:
 ```env
 DATABASE_URL=postgresql://usuario:senha@localhost:5432/guardiaoverde
 SECRET_KEY=sua_chave_secreta_muito_segura
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu_email@gmail.com
+SMTP_PASSWORD=sua_senha_de_app
+SMTP_FROM=seu_email@gmail.com
+SMTP_USE_TLS=true
 ```
+
+Para Gmail ou provedores que exigem senha de app, use a senha de aplicativo do e-mail remetente em `SMTP_PASSWORD`.
 
 Se o banco ainda não existir, crie-o antes de iniciar a API.
 
@@ -148,3 +157,4 @@ Adicionar mais administradores e nomear quem fez qual mudança,
 mandar um email para o usuario para receber atualizacoes sobre sua denuncia.
 curtir comentarios.
 
+Segurança nas paginas

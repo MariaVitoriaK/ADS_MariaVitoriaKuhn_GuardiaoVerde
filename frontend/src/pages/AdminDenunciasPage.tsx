@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Box,
     Button,
@@ -29,6 +29,7 @@ import {
     type Denuncia,
     type DenunciaStatus,
 } from '../data/denuncias';
+import { getDenuncias, updateDenunciaStatus } from '../services/api';
 
 const transicoesPermitidas: Record<DenunciaStatus, DenunciaStatus[]> = {
     pendente: ['aceita', 'recusada'],
@@ -61,6 +62,21 @@ export default function AdminDenunciasPage() {
     const [statusFiltro, setStatusFiltro] = useState<'todos' | DenunciaStatus>('todos');
     const [statusDialog, setStatusDialog] = useState<{ id: number; status: DenunciaStatus; descricao: string } | null>(null);
 
+    useEffect(() => {
+        const carregarDenuncias = async () => {
+            try {
+                const { data } = await getDenuncias();
+                if (Array.isArray(data)) {
+                    setDenuncias(data);
+                }
+            } catch {
+                setDenuncias(getStoredDenuncias());
+            }
+        };
+
+        void carregarDenuncias();
+    }, []);
+
     const denunciasFiltradas = useMemo(() => {
         const termo = pesquisa.trim().toLowerCase();
 
@@ -79,7 +95,13 @@ export default function AdminDenunciasPage() {
         });
     }, [denuncias, pesquisa, statusFiltro]);
 
-    const atualizarStatus = (id: number, novoStatus: DenunciaStatus, observacao: string) => {
+    const atualizarStatus = async (id: number, novoStatus: DenunciaStatus, observacao: string) => {
+        try {
+            await updateDenunciaStatus(id, novoStatus, observacao);
+        } catch (error) {
+            console.error('Erro ao atualizar status da denúncia no backend:', error);
+        }
+
         setDenuncias((prev) => {
             const listaAtualizada = prev.map((denuncia) => {
                 if (denuncia.id_denuncia !== id) return denuncia;
@@ -110,7 +132,7 @@ export default function AdminDenunciasPage() {
         setStatusDialog({ id, status: novoStatus, descricao: descricaoPadraoStatus(novoStatus) });
     };
 
-    const confirmarStatus = () => {
+    const confirmarStatus = async () => {
         if (!statusDialog) return;
 
         const descricaoFinal = statusDialog.descricao.trim();
@@ -118,7 +140,7 @@ export default function AdminDenunciasPage() {
             return;
         }
 
-        atualizarStatus(statusDialog.id, statusDialog.status, descricaoFinal);
+        await atualizarStatus(statusDialog.id, statusDialog.status, descricaoFinal);
         setStatusDialog(null);
     };
 

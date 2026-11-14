@@ -434,7 +434,7 @@ export default function DenunciarPage() {
                             <strong>Descrição:</strong> {denuncia.descricao}
                         </Typography>
 
-                        {denuncia.fotos.length > 0 && (
+                        {denuncia.fotos?.length > 0 && (
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Fotos anexadas</Typography>
                                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
@@ -453,7 +453,7 @@ export default function DenunciarPage() {
 
                         <Box sx={{ mt: 3 }}>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>Atualizações</Typography>
-                            {denuncia.historico.map((historico) => (
+                            {denuncia.historico?.map((historico) => (
                                 <Paper key={historico.id_historico} sx={{ p: 2, mb: 1, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         {new Date(historico.data_alteracao).toLocaleString('pt-BR')}

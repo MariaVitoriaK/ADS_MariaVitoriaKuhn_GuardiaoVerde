@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import secrets
 from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import func
@@ -37,6 +38,10 @@ def validar_username(username: str, db: Session, id_usuario: int | None = None) 
     if consulta.first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username já está em uso.")
     return username_normalizado
+
+
+def gerar_codigo_verificacao() -> str:
+    return f"{secrets.randbelow(1000000):06d}"
 
 
 def validar_email_para_verificacao(email: str) -> str:
@@ -106,7 +111,7 @@ def criar_administrador_secundario(
         tipo_usuario=TipoUsuario.administrador,
         administrador_principal=False,
         status=StatusUsuario.ativo,
-        email_verificado=False,
+        email_verificado=True,
         data_cadastro=datetime.now(),
     )
     db.add(administrador)
@@ -128,8 +133,8 @@ def ler_usuario_logado(current_user: Usuario = Depends(get_current_active_user))
 
 @router.post("/me/verificar-email", status_code=status.HTTP_200_OK)
 def solicitar_verificacao_email(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = None,
     current_user: Usuario = Depends(get_current_active_user),
 ):
     try:
@@ -137,36 +142,68 @@ def solicitar_verificacao_email(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    token = uuid4().hex
+    codigo_verificacao = gerar_codigo_verificacao()
     current_user.email = email_validado
-    current_user.email_verificacao_token = token
-    current_user.email_verificacao_expira_em = datetime.utcnow() + timedelta(hours=24)
+    current_user.email_verificacao_token = codigo_verificacao
+    current_user.email_verificacao_expira_em = datetime.utcnow() + timedelta(minutes=10)
     current_user.email_verificado = False
     db.commit()
 
-    verification_link = f"http://localhost:5173/perfil?verificacao=ok&token={token}"
+    verification_link = f"http://localhost:5173/perfil?verificacao=ok&codigo={codigo_verificacao}"
     if background_tasks is not None:
         background_tasks.add_task(
             send_email_verification_email,
             email_validado,
-            verification_link,
+            codigo_verificacao,
             current_user.nome,
+            verification_link,
         )
 
-    return {"message": "Solicitação de verificação enviada com sucesso.", "email_verificado": False}
+    return {
+        "message": "Código de verificação enviado para o seu e-mail.",
+        "email_verificado": False,
+        "codigo": codigo_verificacao,
+    }
+
+@router.post("/me/verificar-email/confirmar", status_code=status.HTTP_200_OK)
+def confirmar_verificacao_email_por_codigo(
+    dados: dict,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user),
+):
+    codigo = str(dados.get("codigo", "") or "").strip()
+    if len(codigo) != 6 or not codigo.isdigit():
+        raise HTTPException(status_code=400, detail="Código de verificação inválido.")
+
+    if not current_user.email_verificacao_token:
+        raise HTTPException(status_code=400, detail="Nenhum código de verificação foi solicitado.")
+
+    if current_user.email_verificacao_expira_em and datetime.utcnow() > current_user.email_verificacao_expira_em:
+        raise HTTPException(status_code=400, detail="Código expirado. Solicite uma nova verificação.")
+
+    if current_user.email_verificacao_token != codigo:
+        raise HTTPException(status_code=400, detail="Código incorreto.")
+
+    current_user.email_verificado = True
+    current_user.email_verificacao_token = None
+    current_user.email_verificacao_expira_em = None
+    db.commit()
+    return {"message": "E-mail verificado com sucesso.", "email_verificado": True}
 
 @router.get("/me/verificar-email/{token}", status_code=status.HTTP_200_OK)
-def confirmar_verificacao_email(token: str, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email_verificacao_token == token).first()
-    if not usuario:
+def confirmar_verificacao_email(token: str, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_active_user)):
+    if not current_user.email_verificacao_token:
+        raise HTTPException(status_code=400, detail="Nenhum código de verificação foi solicitado.")
+
+    if current_user.email_verificacao_expira_em and datetime.utcnow() > current_user.email_verificacao_expira_em:
+        raise HTTPException(status_code=400, detail="Código expirado. Solicite uma nova verificação.")
+
+    if current_user.email_verificacao_token != token:
         raise HTTPException(status_code=400, detail="Token de verificação inválido ou expirado.")
 
-    if usuario.email_verificacao_expira_em and datetime.utcnow() > usuario.email_verificacao_expira_em:
-        raise HTTPException(status_code=400, detail="Token expirado. Solicite uma nova verificação.")
-
-    usuario.email_verificado = True
-    usuario.email_verificacao_token = None
-    usuario.email_verificacao_expira_em = None
+    current_user.email_verificado = True
+    current_user.email_verificacao_token = None
+    current_user.email_verificacao_expira_em = None
     db.commit()
     return {"message": "E-mail verificado com sucesso.", "email_verificado": True}
 
@@ -192,7 +229,7 @@ def atualizar_perfil(
         if email_em_uso and email_em_uso.id_usuario != current_user.id_usuario:
             raise HTTPException(status_code=400, detail="E-mail já está em uso.")
         current_user.email = email_normalizado
-        current_user.email_verificado = False
+        current_user.email_verificado = current_user.tipo_usuario == TipoUsuario.administrador
         current_user.email_verificacao_token = None
         current_user.email_verificacao_expira_em = None
         

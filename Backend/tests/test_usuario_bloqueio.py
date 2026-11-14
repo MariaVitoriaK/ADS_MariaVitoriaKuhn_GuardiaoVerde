@@ -203,6 +203,14 @@ class TestUsuarioBloqueio(unittest.TestCase):
         with self.assertRaises(ValueError):
             validar_email_para_verificacao('email-falso')
 
+    def test_geracao_codigo_verificacao_tem_six_digitos(self):
+        from app.routers.usuarios import gerar_codigo_verificacao
+
+        codigo = gerar_codigo_verificacao()
+
+        self.assertEqual(len(codigo), 6)
+        self.assertTrue(codigo.isdigit())
+
 
 if __name__ == '__main__':
     unittest.main()

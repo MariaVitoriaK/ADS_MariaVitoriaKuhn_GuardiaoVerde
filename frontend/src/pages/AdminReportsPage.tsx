@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { getStoredDenuncias, statusLabels, type Denuncia } from '../data/denuncias';
-import { getUsers } from '../services/api';
+import { getDenuncias, getUsers } from '../services/api';
 
 interface UsuarioResumo {
     id_usuario: number;
@@ -28,15 +28,20 @@ const metricCard = (title: string, value: string | number, tone: 'primary' | 'su
 
 export default function AdminReportsPage() {
     const navigate = useNavigate();
-    const [denuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
+    const [denuncias, setDenuncias] = useState<Denuncia[]>(() => getStoredDenuncias());
     const [usuarios, setUsuarios] = useState<UsuarioResumo[]>([]);
     const [erro, setErro] = useState('');
 
     useEffect(() => {
         const carregarDados = async () => {
             try {
-                const { data } = await getUsers();
-                setUsuarios(data.map((usuario: any) => ({
+                const [{ data: denunciasData }, { data: usuariosData }] = await Promise.all([
+                    getDenuncias(),
+                    getUsers(),
+                ]);
+
+                setDenuncias(Array.isArray(denunciasData) ? denunciasData : getStoredDenuncias());
+                setUsuarios(usuariosData.map((usuario: any) => ({
                     id_usuario: usuario.id_usuario,
                     nome: usuario.nome,
                     email: usuario.email,
@@ -45,6 +50,7 @@ export default function AdminReportsPage() {
                 })));
             } catch (error) {
                 console.error('Erro ao carregar métricas', error);
+                setDenuncias(getStoredDenuncias());
                 setErro('Não foi possível carregar os dados de usuários e denúncias para os relatórios.');
             }
         };

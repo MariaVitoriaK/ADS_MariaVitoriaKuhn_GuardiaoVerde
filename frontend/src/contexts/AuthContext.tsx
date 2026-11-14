@@ -53,9 +53,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 email: userData.trim(),
                 role: userData.trim().toLowerCase() === 'admin@email.com' ? 'admin' : 'user',
                 administrador_principal: userData.trim().toLowerCase() === 'admin@email.com',
-                email_verificado: false,
+                email_verificado: userData.trim().toLowerCase() === 'admin@email.com',
             }
             : userData ?? null;
+
+        if (nextUser && (nextUser.role === 'admin' || nextUser.email?.toLowerCase() === 'admin@email.com')) {
+            nextUser.email_verificado = true;
+        }
 
         localStorage.setItem('token', newToken);
         if (nextUser) {
