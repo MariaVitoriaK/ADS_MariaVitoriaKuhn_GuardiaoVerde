@@ -1,766 +1,518 @@
-# Documentação dos arquivos importantes do projeto
+# Documentação do projeto Guardião Verde
 
-Este documento explica com profundidade a função de cada arquivo principal do projeto, focando especialmente em:
+## 1. Visão geral
 
-- `Backend/app` — camada de API, regras de negócio, autenticação e modelos do banco
-- `Frontend/src` — interface do usuário, rotas, contexto de autenticação e páginas do sistema
+O Guardião Verde é uma aplicação web para mobilização ambiental e gestão comunitária. O sistema reúne funcionalidades de:
 
-O objetivo é ajudar qualquer pessoa que entre no código a entender rapidamente o que cada parte faz, sem precisar ler todo o projeto de forma aleatória.
+- cadastro e autenticação de usuários
+- envio e acompanhamento de denúncias ambientais
+- feed de notícias
+- perfil de usuário e foto de perfil
+- área administrativa para gerenciamento de usuários e denúncias
+- conexão com ONGs e campanhas de mobilização
 
----
+A estrutura do projeto é um monorepo com duas partes principais:
 
-## Visão geral da arquitetura
-
-O projeto segue uma divisão clara entre:
-
-1. Backend em Python/FastAPI
-   - define os modelos do banco
-   - expõe endpoints HTTP
-   - valida autenticação e autorização
-   - processa regras de negócio (bloqueio, curtidas, denúncias, notícias)
-
-2. Frontend em React + TypeScript
-   - renderiza a interface do usuário
-   - guarda login do usuário no contexto
-   - chama a API
-   - organiza as páginas, rotas e regras de acesso
-
-Em termos práticos:
-
-- o backend é o “motor” do sistema
-- o frontend é a camada visual e interativa
-- o banco de dados armazena os dados reais
-- a comunicação entre os dois acontece via chamadas HTTP (Axios/Fetch)
+- Backend: API em FastAPI
+- Frontend: interface em React + TypeScript + Vite
 
 ---
 
-# Backend/app
+## 2. Arquitetura geral
 
-A pasta `Backend/app` é o coração da API. Ela reúne tudo que o backend precisa para funcionar.
+O projeto segue uma arquitetura simples e funcional para MVP:
 
-## 1) `Backend/app/main.py`
+1. O usuário acessa o frontend.
+2. O frontend realiza requisições para o backend via Axios.
+3. O backend valida autenticação, permissões e regras de negócio.
+4. Os dados são persistidos em banco relacional usando SQLAlchemy.
+5. O frontend exibe os dados e permite ações do usuário e do administrador.
 
-Arquivo principal da aplicação FastAPI.
+O fluxo principal de negócio é o de denúncia ambiental, que passa por:
 
-### Função
-- cria a instância do app com `FastAPI()`
-- habilita CORS para permitir que o frontend acesse a API em localhost
-- monta a pasta de uploads para servir arquivos de imagem
-- registra todos os routers (rotas da API)
-- garante que exista um usuário administrador padrão ao iniciar a aplicação
+- formulário no frontend
+- persistência local no frontend para UX e fallback
+- envio para API do backend
+- registro no banco
+- criação de histórico de status
+- administração pelo painel
+- atualização do status e notificação por e-mail
 
-### O que acontece nele
+---
 
-```python
-app = FastAPI(title="Guardião Verde API", version="1.0.0")
+## 3. Estrutura de pastas
+
+```text
+GuardiaoVerde/
+├── Backend/
+│   ├── alembic/
+│   ├── app/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── routers/
+│   │   ├── schemas/
+│   │   ├── database.py
+│   │   └── main.py
+│   ├── uploads/
+│   ├── requirements.txt
+│   ├── README.md
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   └── README.md
+├── README.md
+├── DOCUMENTACAO_ARQUIVOS.md
+└── .gitignore
 ```
 
-Isso define o nome e a versão da API.
-
-A configuração do CORS é importante porque o frontend roda em `http://localhost:5173` e a API roda em `http://localhost:8000`. Sem isso, o navegador bloqueia requisições entre domínios diferentes.
-
-```python
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-```
-
-Esse trecho disponibiliza arquivos salvos na pasta `uploads` para que a aplicação possa acessar imagens públicas, como fotos de perfil ou imagens de notícias.
-
-A função `ensure_default_admin()` verifica se já existe o e-mail `admin@email.com`. Se não existir, cria um administrador padrão com:
-
-- nome: `Administrador`
-- e-mail: `admin@email.com`
-- senha: `admin`
-
-Esse procedimento é útil para facilitar o primeiro acesso ao painel administrativo.
-
-Também são incluídos os routers:
-
-- `auth.router`
-- `noticias.router`
-- `usuarios.router`
-
-Ou seja, o app conecta as rotas de autenticação, notícias e usuários em um único sistema.
-
 ---
 
-## 2) `Backend/app/database.py`
+## 4. Backend: arquivos e função
 
-Arquivo de configuração do banco de dados.
+### Backend/app/main.py
 
-### Função
-- carrega a variável de ambiente `DATABASE_URL`
-- cria a engine SQLAlchemy
-- cria a sessão do banco (`SessionLocal`)
-- define `Base` como base para todos os modelos do SQLAlchemy
-- expõe a função `get_db()` para injetar sessões nas rotas
+Arquivo principal da API.
 
-### O que ele faz na prática
+Funções:
 
-```python
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-```
-
-Aqui a aplicação conecta ao banco de dados configurado. Essa URL normalmente é algo como PostgreSQL, mas o projeto também pode funcionar em outros ambientes compatíveis com SQLAlchemy.
-
-```python
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-```
-
-Essa função é usada em cada rota do FastAPI. Fundamentamente, ela abre uma sessão de banco, usa essa sessão durante a requisição e a fecha ao final. Isso evita vazamento de conexão e torna o código organizado.
-
----
-
-## 3) `Backend/app/models/models.py`
-
-Arquivo central do modelo de dados.
-
-### Função
-Define todas as tabelas do banco usando SQLAlchemy. Cada classe representa uma tabela, e cada atributo representa uma coluna.
-
-### Modelos principais
-
-#### `TipoUsuario`
-Enum para distinguir:
-- `usuario`
-- `administrador`
-
-#### `StatusUsuario`
-Enum para distinguir:
-- `ativo`
-- `inativo`
-- `banido`
-
-#### `Usuario`
-Tabela principal do sistema.
-
-Campos importantes:
-- `id_usuario`
-- `nome`
-- `email`
-- `senha_hash`
-- `foto_perfil`
-- `tipo_usuario`
-- `status`
-- `bloqueado_ate`
-- `data_cadastro`
-
-Essa tabela representa o usuário cadastrado no sistema, incluindo papel administrativo e bloqueio por tempo.
-
-#### `Denuncia`
-Tabela responsável pelas denúncias registradas.
-
-Campos principais:
-- `titulo`
-- `descricao`
-- `categoria`
-- `cidade`
-- `estado`
-- `latitude`
-- `longitude`
-- `data_ocorrencia`
-- `gravidade`
-- `status`
-- `data_registro`
-
-Essa tabela guarda o caso reportado pela comunidade e é a base do fluxo administrativo.
-
-#### `HistoricoDenuncia`
-Registra o histórico de alterações de status da denúncia.
-
-Exemplo:
-- pendente → aceita
-- aceita → em andamento
-- em andamento → resolvida
-
-Isso é importante para auditoria e para manter um acompanhamento da evolução do caso.
-
-#### `Noticia`
-Tabela para as notícias publicadas.
-
-Campos principais:
-- `titulo`
-- `conteudo`
-- `imagem`
-- `data_publicacao`
-- `status`
-
-Ela sustenta o feed do sistema.
-
-#### `Comentario`
-Tabela para comentários feitos em notícias.
-
-Ele guarda:
-- `id_usuario`
-- `id_noticia`
-- `texto`
-- `data_comentario`
-- `status`
-
-#### `Curtida`
-Representa a curtida de um usuário em uma notícia.
-
-Guarda:
-- `id_usuario`
-- `id_noticia`
-- `data_curtida`
-
-Essa tabela é importante para evitar que o usuário curta a mesma notícia múltiplas vezes e para calcular a quantidade de curtidas por publicação.
-
-#### `ONG`
-Tabela de organizações parceiras ou instituições cadastradas.
-
-Campos principais:
-- `nome`
-- `descricao`
-- `area_atuacao`
-- `site`
-- `link_doacao`
-- `redes_sociais`
-- `status`
-
-Ela sustenta a página/fluxo de ONGs no frontend.
-
----
-
-## 4) `Backend/app/core/security.py`
-
-Arquivo de segurança e autenticação.
-
-### Função
-centraliza login, hash de senha, geração de tokens JWT e verificação de permissões.
-
-### Componentes principais
-
-#### `get_password_hash(password: str)`
-Cria o hash da senha usando Argon2.
-
-Isso garante que a senha do usuário não fique em texto puro no banco.
-
-#### `verify_password(plain_password, hashed_password)`
-Compara uma senha digitada pelo usuário com o hash salvo.
-
-#### `create_access_token(data: dict)`
-Gera um token JWT para autenticar o usuário depois do login.
-
-Esse token é enviado no header `Authorization` em requisições protegidas.
-
-#### `atualizar_status_bloqueio_automatico(db, usuario)`
-Verifica se o prazo de bloqueio já expirou. Se sim:
-- muda o status para `ativo`
-- remove `bloqueado_ate`
-- salva no banco
-
-Esse comportamento permite que um usuário bloqueado por 30 ou 90 dias seja desbloqueado automaticamente quando o tempo passar.
-
-#### `authenticate_user(db, email, password)`
-Busca o usuário no banco e valida a senha. Se usuário e senha forem corretos, retorna o usuário autenticado.
-
-#### `get_current_active_user(...)`
-Leitura crucial do sistema.
-
-Ela:
-- recebe o token JWT
-- decodifica o token
-- busca o usuário correspondente
-- verifica se o usuário ainda está ativo
-- rejeita acessos se ele estiver bloqueado ou inativo
-
-#### `get_current_admin_user(...)`
-Valida se o usuário autenticado tem permissão de administrador.
-
-Se não tiver, bloqueia a rota com erro `403 Forbidden`.
-
----
-
-## 5) `Backend/app/core/dependencies.py`
-
-Arquivo simples, mas importante.
-
-### Função
-Expõe as dependências principais de autenticação para uso em outros módulos do backend.
-
-Ele apenas importa e reexporta funções do módulo `security.py` com `__all__`.
-
-Ou seja, ele serve como uma camada central de acesso rápido para:
-
-- `authenticate_user`
-- `get_current_active_user`
-- `get_current_admin_user`
-- `oauth2_scheme`
-
-Isso ajuda a manter importações mais organizadas em diferentes routers.
-
----
-
-## 6) `Backend/app/routers/auth.py`
-
-Arquivo responsável pelas rotas de autenticação.
-
-### Função
-- login do usuário
-- verificação de token
-
-### Endpoints principais
-
-#### `POST /auth/login`
-Recebe os dados de login no formato do OAuth2 (`username` e `password`).
+- cria a instância do FastAPI
+- monta o diretório de uploads para arquivos de perfil ou notícias
+- habilita CORS para o frontend em localhost
+- registra os routers de autenticação, denúncias, notícias e usuários
+- garante que um administrador padrão exista ao iniciar a API
 
 Fluxo:
-1. busca o usuário pelo e-mail
-2. valida a senha
-3. verifica se a conta está ativa
-4. gera um token JWT
-5. retorna o token para o frontend
 
-Se houver erro de credencial ou conta bloqueada, retorna `401` ou `403`.
+1. a aplicação sobe
+2. `ensure_default_admin()` verifica se existe usuário administrador
+3. se não existir, cria `admin@email.com` com senha `admin`
+4. os routers são carregados e as rotas ficam disponíveis
 
-#### `GET /auth/verify-token`
-Valida um token já enviado pelo frontend. Se for válido, responde positivo. Se não for, rejeita.
+Observação importante: esse arquivo é o ponto de entrada da API e define o comportamento inicial do sistema.
 
-Essa rota é importante para garantir que o frontend não continue autenticado com um token inválido.
+### Backend/app/database.py
 
----
+Arquivo responsável por configurar a conexão com o banco.
 
-## 7) `Backend/app/routers/usuarios.py`
+Funções:
 
-Arquivo com as regras e endpoints de usuários.
+- define a base declarativa do SQLAlchemy
+- cria a sessão de banco (`SessionLocal`)
+- expõe `get_db()` para injeção de dependência nas rotas
 
-### Função
-Gerencia cadastro, perfil, exclusão de conta, bloqueio de usuário e administração.
+Fluxo:
 
-### Partes importantes
+- cada rota depende de `get_db`
+- a sessão é aberta e usada ao atender a requisição
+- ao fim, a sessão é fechada
 
-#### `criar_usuario()`
-Cria um novo usuário no sistema.
+Esse arquivo é o “elo” entre FastAPI e o banco relacional.
 
-Valida:
-- email já existente
-- dados obrigatórios
-- senha segura e armazenada como hash
+### Backend/app/core/security.py
 
-#### `ler_usuario_logado()`
-Retorna os dados do usuário autenticado.
+Centraliza segurança, autenticação e autorização.
 
-Usado pelo frontend para carregar informações do perfil.
+Funções principais:
 
-#### `atualizar_perfil()`
-Permite alterar nome e e-mail do usuário logado.
+- configuração do `CryptContext` para hash de senha com Argon2
+- geração e validação de JWT
+- autenticação do usuário ativo
+- bloqueio e desbloqueio automático por prazo
+- verificação de privilégio de administrador
 
-#### `atualizar_foto_perfil()`
-Recebe um arquivo de imagem, valida o tipo e o tamanho, salva em `uploads/profiles` e atualiza o campo `foto_perfil` do usuário.
+Fluxo:
 
-#### `alterar_senha()`
-Valida a senha atual e troca pela nova senha.
+1. o usuário faz login em `/auth/login`
+2. o sistema valida e-mail e senha
+3. gera um token JWT
+4. em cada rota protegida, o token é lido e validado
+5. o usuário só pode acessar recursos permitidos ao seu perfil
 
-#### `remover_curtidas_do_usuario()`
-Função auxiliar que remove curtidas antes de excluir o usuário.
+Ponto de atenção: a chave secreta usa fallback (`SECRET_KEY` com valor padrão), o que não é recomendado para produção.
 
-Isso resolve um problema crítico do sistema: quando um usuário é deletado, suas curtidas também precisam ser removidas antes do `delete`, para não quebrar integridade referencial.
+### Backend/app/routers/auth.py
 
-#### `excluir_conta()`
-Exclui o usuário logado.
+Rota de autenticação.
 
-Antes disso, chama a função de remoção das curtidas.
+Endpoints principais:
 
-#### `listar_usuarios()`
-Lista todos os usuários. Essa rota é restrita a administradores.
+- `POST /auth/login`
+- `GET /auth/verify-token`
 
-#### `alterar_status_usuario()`
-Rota de administração para:
-- ativar usuário
-- inativar usuário
-- banir usuário por 30 dias, 90 dias ou permanentemente
+Fluxo:
 
-Essa rota também ajusta o campo `bloqueado_ate` e dispara a lógica de desbloqueio automático.
+- usuário envia e-mail e senha
+- backend valida credenciais
+- checa se a conta está ativa
+- retorna o token JWT
 
----
+Esse módulo é a porta de entrada da sessão do usuário.
 
-## 8) `Backend/app/routers/noticias.py`
+### Backend/app/routers/usuarios.py
 
-Arquivo que cuida do feed e da lógica de notícias.
+Módulo do gerenciamento de usuários.
 
-### Função
-- listar notícias públicas
-- buscar notícia individual
-- criar notícia (somente admin)
-- curtir notícia
-- comentar notícia
+Ele cuida de:
 
-### Função `serializar_noticia()`
-Transforma o objeto da model em um formato serializável para o frontend. Ela inclui:
-- id
-- título
-- conteúdo
-- imagem
-- data
-- total de curtidas
-- total de comentários
-- se o usuário atual curtiu a notícia
+- cadastro de usuário comum
+- criação de administrador secundário
+- leitura do perfil do usuário logado
+- atualização de perfil, foto, senha e status
+- bloqueio de contas
+- verificação de e-mail
+- gestão administrativa
 
-### `listar_noticias()`
-Busca todas as notícias públicas e calcula:
-- quantas curtidas cada uma tem
-- quantos comentários cada uma tem
-- se o usuário logado curtiu a notícia
+Fluxo principal:
 
-### `obter_noticia()`
-Busca uma notícia específica e também retorna os comentários associados.
+- o usuário cria conta
+- o backend valida username, e-mail e regras de integridade
+- o usuário pode validar e-mail
+- o admin pode bloquear, ativar ou remover perfis
 
-### `criar_noticia()`
-Cria uma notícia no banco. Só um administrador pode fazer isso.
+Esse arquivo também é importantíssimo para a lógica de segurança e autorização da aplicação.
 
-### `curtir_noticia()`
-Alterna a curtida:
-- se o usuário já curtiu, remove
-- se não curtiu, adiciona
+### Backend/app/routers/denuncias.py
 
-A resposta inclui o novo total de curtidas.
+Este é o módulo mais importante para o fluxo de denúncia.
 
-### `comentar_noticia()`
-Cria um comentário para uma notícia, validando que o texto não esteja vazio.
+Responsabilidades:
 
----
+- listar denúncias
+- listar as denúncias do usuário autenticado
+- criar denúncia
+- alterar o status da denúncia
+- registrar histórico da mudança
+- disparar notificação por e-mail quando status muda
 
-## 9) `Backend/app/schemas/*.py`
+Fluxo principal da denúncia:
 
-A pasta `schemas` contém os modelos de entrada e saída da API, usados para validar os dados recebidos e retornados.
+1. Usuário acessa o frontend e preenche formulário.
+2. O frontend cria um objeto de denúncia e salva localmente (fallback) ou envia para a API.
+3. O backend recebe o payload em `criar_denuncia()`.
+4. O backend valida título e descrição.
+5. Cria a instância de `Denuncia` com os campos principais.
+6. Salva no banco.
+7. Cria um registro em `HistoricoDenuncia` com a observação:
+   `Denúncia registrada e encaminhada para o administrador.`
+8. A denúncia fica com status inicial `pendente`.
+9. O administrador acessa o painel de denúncias.
+10. O admin altera o status para `aceita`, `em_andamento`, `resolvida` ou `recusada`.
+11. O backend grava o histórico com `status_anterior`, `novo_status` e `observacao`.
+12. Se o e-mail do usuário estiver verificado, dispara e-mail de atualização.
 
-### `token.py`
-Define a estrutura do payload do token.
+End points relevantes:
 
-Exemplo:
+- `GET /denuncias/`
+- `GET /denuncias/me`
+- `POST /denuncias/`
+- `POST /denuncias/{id_denuncia}/status`
+- `POST /denuncias/me/verificar-email`
 
-- `access_token`
-- `token_type`
+Observação: há uma diferença importante entre a experiência do frontend e o backend real:
 
-### `usuario.py`
-Define modelos como:
+- o frontend usa dados locais em `localStorage` para simulação
+- o backend é a fonte real de dados e persistência
 
-- `UsuarioCreate`
-- `UsuarioOut`
-- `UsuarioUpdate`
-- `UsuarioUpdateSenha`
-- `UsuarioStatusUpdate`
+Esse dualismo precisa ser documentado para evitar confusão de manutenção.
 
-Esses schemas garantem que o frontend envie e receba dados com a estrutura correta.
+### Backend/app/models/models.py
 
-### `noticia.py`
-Define os schemas para notícias e comentários.
+Define os modelos do banco com SQLAlchemy.
 
-Ele valida o conteúdo enviado para criação de notícia e o retorno com listagem de comentário, curtida e dados da publicação.
+Entidades principais:
 
-Em resumo: `schemas` é a camada de contrato da API.
+- `Usuario`
+- `Denuncia`
+- `HistoricoDenuncia`
+- `Foto`
+- `Noticia`
+- `Comentario`
+- `Curtida`
+- `ONG`
 
----
+Modelos relevantes para denúncias:
 
-# Frontend/src
+#### `Usuario`
 
-A pasta `Frontend/src` é a parte visual do sistema. Ela organiza interface, estados, rotas e comunicação com a API.
+Armazena dados de autenticação e perfil do usuário, além de status e permissões.
 
-## 1) `Frontend/src/main.tsx`
+#### `Denuncia`
 
-Arquivo de bootstrap da aplicação React.
+Representa a denúncia ambiental:
 
-### Função
-- monta a aplicação na página HTML
-- envolve tudo em `<React.StrictMode>`
-- envolve a aplicação com `AuthProvider`
-- renderiza `<App />`
+- id da denúncia
+- id do usuário autor
+- título e descrição
+- categoria
+- localizacao, cidade, estado
+- coordenadas
+- data da ocorrência
+- gravidade
+- status
+- data do registro
 
-### Importância
-É o ponto de entrada do frontend. Sem esse arquivo, a aplicação não aparece na tela.
+#### `HistoricoDenuncia`
 
----
+Registro do ciclo de vida da denúncia.
 
-## 2) `Frontend/src/App.tsx`
+Ele guarda:
 
-Arquivo principal da camada de renderização.
+- status anterior
+- novo status
+- observação
+- quem alterou
+- data da alteração
 
-### Função
-- aplica `CssBaseline` para resetar estilos padrão do navegador
-- chama `AppRoutes` para renderizar as rotas da aplicação
+Esse histórico é essencial para auditoria e rastreabilidade das decisões administrativas.
 
-Em projetos React é comum esse arquivo conter a estrutura principal do app, e aqui ele fica bem mínimo, exatamente como a arquitetura do projeto foi organizada.
+### Backend/app/services/email_service.py
 
----
+Responsável por enviar e-mails do sistema.
 
-## 3) `Frontend/src/contexts/AuthContext.tsx`
+Funções relevantes:
 
-Arquivo que guarda o estado da autenticação no frontend.
+- envio de confirmação de e-mail
+- envio de atualização de status de denúncia
+- envio de mensagens administrativas
 
-### Função
-controla:
-- se o usuário está autenticado
-- quem é o usuário
-- se é admin
-- login
-- logout
-- atualização dos dados do usuário
+Fluxo:
 
-### O que ele faz na prática
+- o backend monta o conteúdo do e-mail
+- usa SMTP para entregar a mensagem
+- se a conta do usuário está verificada, a atualização pode ser enviada com sucesso
 
-- lê o token salvo em `localStorage`
-- lê o usuário salvo em `localStorage`
-- usa esse estado para permitir acesso às rotas privadas
-- marca `isAdmin` quando o e-mail do usuário é `admin@email.com`
+### Backend/app/routers/noticias.py
 
-Esse contexto é essencial porque várias telas dependem do estado de autenticação.
+Administra o feed de notícias.
 
----
+Funções:
 
-## 4) `Frontend/src/routes/AppRoutes.tsx`
-
-Arquivo central de navegação da aplicação.
-
-### Função
-define todas as rotas do frontend e quais páginas são públicas ou privadas.
-
-### Estrutura
-
-- rotas públicas:
-  - `/login`
-  - `/cadastro`
-  - `/`
-
-- rotas privadas para qualquer usuário autenticado:
-  - `/home`
-  - `/perfil`
-  - `/dashboard`
-  - `/denunciar`
-  - `/ongs`
-  - `/noticias/:id`
-
-- rotas privadas só para admin:
-  - `/admin`
-  - `/admin/denuncias`
-  - `/admin/relatorios`
-
-A navegação é controlada por `PrivateRoute.tsx`.
-
----
-
-## 5) `Frontend/src/routes/PrivateRoute.tsx`
-
-Componente de proteção de rotas.
-
-### Função
-- se o usuário não está logado, redireciona para `/login`
-- se a rota é `adminOnly` e o usuário não é admin, redireciona para `/dashboard`
-- caso contrário, renderiza a rota solicitada
-
-Isso garante que partes sensíveis da aplicação não sejam acessíveis por qualquer usuário.
-
----
-
-## 6) `Frontend/src/services/api.ts`
-
-Arquivo de cliente HTTP do frontend.
-
-### Função
-cria a instância do Axios com base URL em `http://localhost:8000`.
-
-Ele também adiciona automaticamente o token JWT no header `Authorization` para cada requisição.
-
-### O que ele encapsula
-- `getCurrentUser()`
-- `updateProfile()`
-- `updatePassword()`
-- `deleteAccount()`
-- `getUsers()`
-- `updateUserStatus()`
-
-Esse arquivo é a ponte entre o frontend e a API. Ele centraliza a comunicação HTTP para evitar repetição e reduzir erros.
-
----
-
-## 7) `Frontend/src/services/noticias.ts`
-
-Arquivo específico para operações relacionadas a notícias.
-
-### Função
-encapsula chamadas da API para:
-- listar notícias
-- buscar notícia por id
-- criar notícia
-- curtir notícia
-- criar comentário
-
-Esse arquivo mantém o código mais organizado e deixa os componentes de página mais limpos.
-
----
-
-## 8) `Frontend/src/data/denuncias.ts`
-
-Arquivo responsável por definir o formato e o armazenamento local das denúncias no frontend.
-
-### Função
-- define tipos e interfaces (
-  `Denuncia`, `HistoricoDenuncia`, `DenunciaStatus`)
-- define labels de status em texto (`Pendente`, `Aceita`, etc.)
-- cria histórico de alteração de status
-- lê e salva denúncias no `localStorage`
-
-### Por que isso existe
-Mesmo com a API existindo, a aplicação usa localStorage para persistir dados de denúncia em algumas interações do frontend. Isso melhora a experiência em fluxo de admin e teste local sem depender de backend em alguns casos.
-
-Esses utilitários servem como uma camada de armazenamento temporário e de controle de estado do front.
-
----
-
-## 9) `Frontend/src/components/Layout.tsx`
-
-Componente estrutural da navegação base.
-
-### Função
-monta o layout visual geral da aplicação:
-- AppBar superior
-- espaço de conteúdo principal
-- `Outlet` para renderizar as páginas conforme rota
-
-Esse é um componente reutilizado pela aplicação para manter padronização visual.
-
----
-
-## 10) `Frontend/src/pages/`
-
-A pasta de páginas contém as telas da aplicação. Cada arquivo representa uma rota ou parte funcional do sistema.
-
-### Páginas principais
-
-#### `Login.tsx`
-Tela de autenticação.
-
-- login de usuário
-- gerenciamento do token
-- redirecionamento ao dashboard após autenticação
-
-#### `Cadastro.tsx`
-Tela de cadastro de usuários.
-
-- coleta nome, e-mail e senha
-- envia dados para `/usuarios/`
-- redireciona para login ou dashboard conforme fluxo
-
-#### `Home.tsx`
-Tela inicial da aplicação ou painel inicial público/privado.
-
-#### `Dashboard.tsx`
-Principal painel do usuário.
-
-- mostra acesso ao feed
-- permite navegar para denunciar
-- mostra ações importantes
-- inclui acesso ao painel administrativo para admins
-- responde ao menu mobile com hambúrguer
-
-#### `Perfil.tsx`
-Tela do perfil do usuário.
-
-- exibe dados cadastrados
-- atualiza nome, e-mail, foto e senha
-- permite gestão do próprio perfil
-
-#### `DenunciarPage.tsx`
-Tela de registro de denúncia.
-
-- formulário com categoria, cidade, estado, data e gravidade
-- coleta coordenadas no mapa
-- salva denúncia no sistema
-- usa o estado local para persistência
-
-#### `FeedNoticias.tsx`
-Feed de notícias.
-
-- lista notícias públicas
-- permite curtir
-- permite comentar
-- admin pode criar nova notícia
-- aceita imagem local selecionada do computador
-
-#### `NoticiaPage.tsx`
-Página de detalhe de uma notícia específica.
-
-- mostra conteúdo completo
-- comentários da notícia
+- listagem de notícias
+- detalhes da notícia
+- criação de notícia pelo administrador
 - curtidas
-- interações do usuário
+- comentários
 
-#### `OngsPage.tsx`
-Página que lista ONGs.
-
-- mostra organizações, áreas de atuação e links
-- é uma parte importante do ecossistema de mobilização ambiental
-
-#### `AdminPanel.tsx`
-Painel administrativo principal.
-
-- lista usuários
-- permite alterar status de contas
-- possibilita bloquear por 30 ou 90 dias ou permanentemente
-- permite buscar e filtrar usuários
-
-#### `AdminDenunciasPage.tsx`
-Painel administrativo de denúncias.
-
-- lista todas as denúncias
-- filtra por texto e status
-- aceita, recusa, conclui ou coloca em andamento
-- mostra histórico de mudanças
-
-#### `AdminReportsPage.tsx`
-Página de relatórios do administrador.
-
-- mostra métricas gerais
-- conta denúncias por status
-- mostra quantidade de usuários ativos/inativos/bloqueados
-- resume o estado geral do sistema
+Não é o foco principal do fluxo de denúncia, mas faz parte do ecossistema da aplicação.
 
 ---
 
-## 11) `Frontend/src/styles.css`
+## 5. Frontend: arquivos e função
 
-Arquivo de estilos globais.
+### frontend/src/services/api.ts
 
-### Função
-- define estilos gerais da aplicação
-- ajuda a padronizar layout, espaçamentos, botões, cards e páginas
-- complementa os estilos do Material UI
+Cliente HTTP central do projeto.
 
-Ele não substitui o MUI, mas ajuda a criar a base visual do projeto.
+Funções:
+
+- cria uma instância do Axios
+- usa `baseURL: http://localhost:8000`
+- adiona o token JWT automaticamente em requisições autenticadas
+- exporta funções para login, usuários, denúncias e notícias
+
+Esse arquivo é a ponte entre interface e backend.
+
+### frontend/src/contexts/AuthContext.tsx
+
+Contexto de autenticação do React.
+
+Responsabilidades:
+
+- guardar token e usuário no `localStorage`
+- disponibilizar `login`, `logout` e `updateUser`
+- identificar se o usuário é admin
+- controlar acesso às rotas privadas
+
+Esse módulo centraliza o estado de sessão do usuário.
+
+### frontend/src/routes/AppRoutes.tsx
+
+Define as rotas da aplicação.
+
+Rotas públicas:
+
+- `/login`
+- `/cadastro`
+
+Rotas privadas:
+
+- `/home`
+- `/perfil`
+- `/dashboard`
+- `/denunciar`
+- `/ongs`
+- `/noticias/:id`
+
+Rotas administrativas:
+
+- `/admin`
+- `/admin/denuncias`
+- `/admin/relatorios`
+
+### frontend/src/pages/DenunciarPage.tsx
+
+Página principal de envio de denúncia pelo usuário.
+
+Funções:
+
+- formulário com categoria, cidade, estado, gravidade, descrição, data e coordenadas
+- seleção no mapa para identificar a ocorrência
+- upload de fotos
+- validação de campos
+- criação da denúncia com status inicial `pendente`
+- armazenamento local em `localStorage` para UX e fallback
+
+Fluxo da denúncia na interface:
+
+1. o usuário escolhe categoria e localização
+2. preenche descrição e dados da ocorrência
+3. seleciona o mapa para coordenadas
+4. envia o formulário
+5. o denúncia é salva em memória/localStorage
+6. o item aparece na lista do usuário
+
+Importante: esse arquivo mostra a experiência do usuário mais diretamente, porém a fonte real de dados continua sendo o backend.
+
+### frontend/src/data/denuncias.ts
+
+Arquivo que define o modelo local de denúncia e o armazenamento em `localStorage`.
+
+Funções:
+
+- define `DenunciaStatus`
+- define interface `Denuncia`
+- define `statusLabels`
+- salva e lê registros de denúncias no navegador
+- cria histórico inicial de mudanças
+
+Observação importante:
+
+- esse arquivo representa um “mock local” para a UI
+- ele não substitui o banco real do backend
+- é útil para desenvolvimento e UX, mas deve ser usado com cuidado
+
+### frontend/src/pages/AdminDenunciasPage.tsx
+
+Dashboard administrativo para análise de denúncias.
+
+Funções:
+
+- busca e lista denúncias recebidas
+- filtra por status e conteúdo
+- permite transições de status
+- registra observação do administrador
+- atualiza a denúncia no frontend e chama a API do backend
+
+Fluxo administrativo:
+
+1. admin entra na página
+2. carrega denúncias do backend
+3. escolhe uma denúncia
+4. altera o status
+5. grava observação
+6. o sistema salva o histórico e atualiza a interface
+
+### frontend/src/pages/AdminPanel.tsx e AdminReportsPage.tsx
+
+São páginas de gestão da área administrativa.
+
+- `AdminPanel`: painel geral de gestão
+- `AdminReportsPage`: relatórios, métricas e visão do administrador
+
+Essas páginas complementam a operação do fluxo de denúncias e ajudam na supervisão geral.
+
+### frontend/src/pages/Login.tsx, Cadastro.tsx, Perfil.tsx, Dashboard.tsx
+
+Esses arquivos tratam da experiência do usuário:
+
+- login
+- cadastro
+- perfil
+- dashboard geral
+- acesso às ações disponíveis
 
 ---
 
-# Conclusão
+## 6. Fluxo completo de denúncia
 
-O projeto está organizado em duas camadas bem separadas:
+### Fluxo do usuário
 
-- Backend: regras, autenticação, banco, usuários, notícias e administração
-- Frontend: interface, rotas, autenticação no cliente e páginas do app
+1. usuário acessa `/denunciar`
+2. preenche formulário
+3. informa categoria, cidade, descrição, data e coordenadas
+4. envia denúncia
+5. estado inicial passa para `pendente`
+6. o historico inicial é registrado
 
-Isso é uma estrutura saudável porque permite:
+### Fluxo administrativo
 
-- manutenção mais fácil
-- separação entre regras de negócio e interface
-- crescimento do sistema sem misturar responsabilidades
-- testes mais focados em cada parte
+1. admin acessa `/admin/denuncias`
+2. lista denúncias e filtros
+3. escolhe status final
+4. confirma a alteração
+5. o backend atualiza o registro no banco
+6. o histórico guarda a mudança
+7. o usuário pode receber notificação por e-mail
 
-Se alguém quiser evoluir o projeto, o primeiro passo é entender esta divisão:
+### Fluxo de persistência
 
-- o que fica em `Backend/app` é o núcleo da lógica do sistema
-- o que fica em `Frontend/src` é a camada de experiência do usuário
+- Frontend: localStorage + UX local
+- Backend: banco relacional + SQLAlchemy + histórico de status
+- Mensagens e-mails: disparadas por SMTP
 
-A leitura correta desses arquivos é o mapa para entender a aplicação inteira.
+Esse fluxo é o coração do sistema, e a clareza dessa cadeia é crucial para manutenção e evolução do projeto.
 
 ---
 
-Se quiser, posso também criar uma segunda versão desta documentação em formato mais visual, como:
+## 7. O que pode melhorar no projeto
 
-- `MAPA_DAS_PASTAS.md`
-- `ARQUITETURA_GERAL.md`
-- `MANUAL_DO_DESENVOLVEDOR.md`
+### 7.1 Padronização
+
+- padronizar nomes de arquivos e documentação (`README.md` em vez de `Readme.md`)
+- manter uma convenção de pastas e instruções iguais em todas as áreas
+- remover duplicação de documentação em três README diferentes
+
+### 7.2 Segurança
+
+- remover fallback de `SECRET_KEY` fraco
+- ajustar credenciais padrão do administrador para produção
+- validar melhor ambiente de desenvolvimento e produção
+- evitar hardcoded `localhost` em partes da aplicação
+
+### 7.3 Ambiente e setup
+
+- padronizar `requirements.txt`, `package.json`, ambiente virtual e versões
+- incluir `pytest` como dependência de desenvolvimento
+- documentar melhor `DATABASE_URL`, `SMTP_*` e outros parâmetros de ambiente
+- centralizar `.env.example` e cotas de configuração
+
+### 7.4 Manutenção
+
+- separar melhor dados de mock/localStorage do backend real
+- documentar claramente onde o sistema está em simulação e onde está em produção
+- melhorar a camada de validação e mensagens de erro
+
+### 7.5 Escalabilidade
+
+- migrar parte do armazenamento local para backend consistente e unificado
+- reforçar regras de business logic em schemas e validações de API
+- padronizar resposta de APIs e tratamentos de erro
+
+---
+
+## 8. Conclusão
+
+O projeto já apresenta uma boa base funcional para um MVP. A principal área de melhoria não é a ausência de funcionalidade, e sim a organização, a padronização e a clareza do fluxo de negócio.
+
+O fluxo de denúncia está bem compreensível e está funcional, mas o sistema ainda mistura:
+
+- frontend local de experiência
+- backend real de persistência
+- administração de status e histórico
+- notificações por e-mail
+
+Com uma documentação mais clara e uma padronização melhor de nomes e ambiente, o projeto fica muito mais fácil de manter e evoluir.

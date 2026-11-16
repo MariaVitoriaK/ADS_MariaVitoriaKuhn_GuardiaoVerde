@@ -11,3 +11,4 @@ cloudinary
 alembic
 python-dotenv
 psycopg
+pytest

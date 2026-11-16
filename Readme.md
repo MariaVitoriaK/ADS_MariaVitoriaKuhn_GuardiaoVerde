@@ -33,14 +33,16 @@ GuardiaoVerde/
 │   │   └── main.py
 │   ├── uploads/
 │   ├── requirements.txt
+│   ├── README.md
 │   └── alembic.ini
-├── Frontend/
+├── frontend/
 │   ├── public/
 │   ├── src/
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.*
-├── Readme.md
+├── README.md
+├── DOCUMENTACAO_ARQUIVOS.md
 └── .gitignore
 ```
 
